@@ -35,15 +35,23 @@ object FinalProjUI  extends SimpleSwingApplication {
     println(countZDDOnePaths(jZDD))
     */
     /*
-    val fourG = gridGraph4by4.g
-    val ZDD = algorithmTwo(fourG, gridGraph4by4.h)
-    println(countZDDOnePaths(ZDD))
+    val lineG = lineGraph.g
+    val lineZDD = algorithmTwo(lineG, lineGraph.h)
+    println(lineZDD)
+    println("lineG: "+ countZDDOnePaths(lineZDD))
     */
 
+
+    val fourG = gridGraph4by4.g
+    val ZDD = algorithmTwo(fourG, gridGraph4by4.h)
+    println("fourG: "+ countZDDOnePaths(ZDD))
+
+
+/*
     val gGraph = gridGraph.g
     val jj = algorithmTwo(gGraph, gridGraph.h)
-    println(countZDDOnePaths(jj))
-
+    println("eightG: "+ countZDDOnePaths(jj))
+ */
   }
 }
 
@@ -72,6 +80,18 @@ object gridGraph4by4 {
 
   val h = List(VertexPair(vList(0), vList(3)))
 }
+
+object lineGraph {
+  val vList = List.range(1, 5) map (x => Vertex(x, x - 1))
+  val e1 = Edge(vList(0), vList(1))
+  val e2 = Edge(vList(1), vList(2))
+  val e3 = Edge(vList(2), vList(3))
+  val eList = List(e1, e2, e3)
+  val g = new Graph(vList, eList)
+
+  val h = List(VertexPair(vList(0), vList(3)))
+}
+
 
 object gridGraph {
 

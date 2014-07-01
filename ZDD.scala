@@ -162,31 +162,46 @@ object ZDD {
     buildZDD(zddList.toList)
   }
 
-  def zeroChildIsIncompatible[T](n: ELM[T], h: List[VertexPair[T]]): Boolean = {
+  def zeroChildIsIncompatible[T](i: Int, n: ELM[T], h: List[VertexPair[T]], domain: Map[Int, List[Vertex[T]]]): Boolean = {
     val edge = n.edgeLabel
     val mateTable = n.mates
     val hFlat = h.flatMap(p => List(p.v0, p.v1))
 
-    if (hFlat.contains(edge.v) && mateTable(edge.v) == edge.v) true
-    else if (!hFlat.contains(edge.v) && mateTable(edge.v).order != -1 && mateTable(edge.v) != edge.v) true
-    else false
+    def matchV(vertexList: List[Vertex[T]]): Boolean = vertexList match {
+      case Nil => false
+      case (v: Vertex[T]) :: rest =>
+        if (hFlat.contains(v) && mateTable(v) == v) true
+        else if (!hFlat.contains(v) && mateTable(v).order != -1 && mateTable(v) != v) true
+        else false
+    }
+
+    if (i + 1 < domain.size) matchV(List(edge.u, edge.v) diff domain(i+1))
+    else {
+      matchV(List(edge.v))
+      /*
+      val result1 = matchV(List(edge.v))
+      val result2 = matchV(List(edge.u))
+      println("r1: "+ result1)
+      println("r2: "+ result2)
+      result1
+      */
+    }
+
   }
 
-  //def getOneChild[T](i: Int, g: Graph[T], n: ELM[T], domain: Map[Int, List[Vertex[T]]]): ELM[T] = {
   def oneChildIsIncompatible[T](i: Int, g: Graph[T], n: ELM[T], h: List[VertexPair[T]], domain: Map[Int, List[Vertex[T]]]): Boolean = {
     if (i + 1 < g.edges.length) {
       val edge = n.edgeLabel
       val mateTable = n.mates
+      // can move this hFlat out of loop, only needs to be calculated once
       val hFlat = h.flatMap(p => List(p.v0, p.v1)).toSet
       val hUnionVDiff = hFlat union (g.vertices.toSet diff domain(i + 1).toSet)
       val mateU = mateTable(edge.u)
       val mateV = mateTable(edge.v)
 
-      //println(mateU, mateV)
-      if (rejectEdge(n, edge)) true
-      else if (hFlat.contains(edge.v) && mateTable(edge.v) != edge.v) true
-      // TODO: fix the implementation of the PairMatching case class to be order invariant
-      else if (hUnionVDiff.contains(mateU) && hUnionVDiff.contains(mateV) && !h.contains(VertexPair(mateV, mateU)) && !h.contains(VertexPair(mateU, mateV))) true
+      if (hFlat.contains(edge.v) && mateTable(edge.v) != edge.v) {println(2); true}
+      else if (hFlat.contains(edge.u) && mateTable(edge.u) != edge.u) {println(3); true}
+      else if (hUnionVDiff.contains(mateU) && hUnionVDiff.contains(mateV) && !h.contains(VertexPair(mateU, mateV)) ) {println(4); true}
       else false
     } else {
       false
@@ -194,7 +209,6 @@ object ZDD {
   }
 
   def algorithmTwo[T](g: Graph[T], h: List[VertexPair[T]]): Node[T] = {
-    //def algorithmTwo[T](g: Graph[T], h: PairMatching[T]): Unit = {
     // make function for boilerplate for algo 1, 2
     val domain = Map.empty ++ dom(0, g.edges)
     val firstEdge = g.edges(0)
@@ -209,13 +223,14 @@ object ZDD {
       for (i <- g.edges.indices.toList; n <- N(i)) yield {
         // basically need to keep what we have, but add more
         val zeroChild =
-          if (zeroChildIsIncompatible(n, h)) zeroTerminal
+          if (zeroChildIsIncompatible(i, n, h, domain)) zeroTerminal
           else if (i+1 < numEdges) getZeroChild(i, g, n, domain)
-          else  oneTerminal
+          else oneTerminal
 
         val oneChild =
-          //if (rejectEdge(n, g.edges(i)))  zeroTerminal
-          if (oneChildIsIncompatible(i, g, n, h, domain))  zeroTerminal
+          if (rejectEdge(n, g.edges(i))) zeroTerminal
+          else if (oneChildIsIncompatible(i, g, n, h, domain))  zeroTerminal
+          //else if (haveSolutionSkipSubPaths(n, h))
           else if (i+1 < numEdges)  getOneChild(i, g, n, domain)
           else oneTerminal
 
