@@ -1,9 +1,7 @@
 import scala.swing._
 import scala.swing.BorderPanel.Position._
 import java.awt.{ Color, Graphics2D, RenderingHints, BasicStroke }
-//import scala.util.Random
-//import event._
-//import scala.math.{ sin, cos, round, Pi }
+import scala.util.Random
 
 import Graph._
 import ZDD._
@@ -25,7 +23,8 @@ object FinalProjUI  extends SimpleSwingApplication {
         })
       }
     }
-/*
+
+    /*
     val fourGb = Graph.gridGraph(2, 2)
     val threeGb = Graph.gridGraph(3, 3)
     //val h = List(VertexPair(vList(0), vList(3)))
@@ -34,11 +33,32 @@ object FinalProjUI  extends SimpleSwingApplication {
     val g88 = algorithmTwo(threeGb, gridGraph.h)
     println("eightG: "+ countZDDOnePaths(g88))
     */
-    val big = Graph.gridGraph(2,2)
-    val h = List(VertexPair(big.vertices(0), big.vertices.last))
+    def collectOneEdges[T](n: Node[T]): List[Edge[T]] = n match {
+      case Node(_, `oneTerminal`, _) => throw new NoSuchElementException
+      case Node(_, `zeroTerminal`, `zeroTerminal`) => Nil
+      case Node(p, `zeroTerminal`, `oneTerminal`) => p.edgeLabel :: Nil
+      case Node(p, `zeroTerminal`, hi: Node[T]) =>
+        n.params.edgeLabel :: Nil ::: collectOneEdges(hi)
+      case n @ Node(p, lo: Node[T], hi: Node[T]) =>
+        n.params.edgeLabel :: Nil ::: collectOneEdges(hi) ::: collectOneEdges(lo)
+      case Node(p, lo: Node[T], _) =>
+        collectOneEdges(lo)
+    }
+
+    /*
+    //TODO: starting point of next workflow
+    def processOneEdges[T](edges: List[Edge[T]], PairMatchings): Unit = edges match {
+      //case Edge(e0, e1) if e0
+    }
+    */
+
+    val big = Graph.gridGraph(3, 3)
+    //val h = List(VertexPair(big.vertices(0), big.vertices.last), VertexPair(big.vertices(1), big.vertices(5)))
+    val h = List(VertexPair(big.vertices(0), big.vertices(6)), VertexPair(big.vertices(1), big.vertices(5)))
+    h.foreach(println)
     val bigZDD = algorithmTwo(big, h)
-    println("finished building")
-    println("big: "+ countZDDOnePaths(bigZDD))
+    val oneEdges = collectOneEdges(bigZDD)
+    oneEdges.foreach(println)
   }
 }
 
@@ -47,7 +67,8 @@ object zorn  {
   val cadmiumRedMedium = new Color(196, 1, 45)
   val ivoryBlack = new Color(40, 36, 34)
   val titaniumWhite = new Color(244, 237, 237)
-  val blend = new Color(181, 117, 90, 50)
+  val titaniumWhiteAlpha = new Color(244, 237, 237, 75)
+  val blend = new Color(181, 117, 90, 150)
   val YBW = List[Color](yellowOchre, ivoryBlack, titaniumWhite)
   val palette = List[Color](yellowOchre, cadmiumRedMedium, ivoryBlack, titaniumWhite)
   val blended = blendPalette(palette)
@@ -55,7 +76,7 @@ object zorn  {
   def blendPalette(palette: List[Color]): List[Color] = {
     def f(c1: Int, c2: Int) = (c1+c2)/2
     for (i <- palette; j <- palette) yield {
-      new Color(f(i.getRed, j.getRed), f(i.getGreen, j.getGreen), f(i.getBlue, j.getBlue))
+      new Color(f(i.getRed, j.getRed), f(i.getGreen, j.getGreen), f(i.getBlue, j.getBlue), 30)
     }
   }
 
@@ -73,25 +94,29 @@ class Canvas extends Panel {
 
   //g.setStroke(new BasicStroke(5, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL))
   override def paintComponent(g: Graphics2D) {
+    g.setBackground(zorn.titaniumWhite)
     g.clearRect(0, 0, size.width, size.height)
     g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
-    g.setBackground(zorn.ivoryBlack)
 
-    //g.setColor(zornBlend)
-    //g.fillRect(innerRect, innerRect, innerRectWidthHeight, innerRectWidthHeight)
     for (i <- Range(jump, size.width-innerRect) by jump;
          j <- Range(jump, size.height-innerRect) by jump) {
-
-      g.setColor(zorn.ivoryBlack)
-      g.setStroke(twoStroke)
-      g.drawRect(i, j, jump, jump)
 
       //g.setColor(zorn.ivoryBlack)
       //g.setStroke(twoStroke)
       //g.drawRect(i, j, jump, jump)
 
-      //g.setColor(blendedZorn(Random.nextInt(bzl)))
-      //g.fillOval(i, j, jump, jump)
+      g.setStroke(new BasicStroke(16))//, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL))
+      g.setColor(zorn.ivoryBlack)
+      g.drawRect(i, j, jump, jump)
+
+      g.setStroke(fiveStroke)
+      g.setColor(zorn.titaniumWhiteAlpha)
+      //g.setColor(zorn.cadmiumRedMedium)
+      g.drawLine(i, j, i, j+jump)
+      g.drawLine(i, j+jump, i+jump, j+jump)
+
+      //g.setColor(zorn.blended(Random.nextInt(bzl)))
+      //g.fillRect(i, j, jump, jump)
     }
   }
 

@@ -223,6 +223,7 @@ object ZDD {
         buildFrontier(i+1, N, List(zeroChild, oneChild))
         Node(n, zeroChild, oneChild)
       }
+    zddList.foreach(println)
     buildZDD(zddList.toList)
   }
 }
