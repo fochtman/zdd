@@ -95,20 +95,6 @@ object ZDD {
     }
     countHelper(root)
   }
-  /* UTILITY FUNCTIONS
-  def printHead(xs: List[ZDD]): Unit = xs match {
-    case Nil => println("finished")
-    case Node(p, lc, rc) :: tail =>
-      println(p+"  "+lc+"  "+"  "+rc)
-      printHead(tail)
-  }
-  def checkTerm[T](node: Node[T]): Unit = node match {
-    case Node(_, l: Node[T], _) =>
-      func(l)
-    case Node(_, `oneTerminal`, _) => println("oneT")
-  }
-  func(rootz)
-  */
 
   def buildZDD[T](zddList: List[Node[T]]): Node[T] = {
     val paramsNode = for {
@@ -158,7 +144,6 @@ object ZDD {
         buildFrontier(i+1, N, List(zeroChild, oneChild))
         Node(n, zeroChild, oneChild)
       }
-
     buildZDD(zddList.toList)
   }
 
@@ -176,17 +161,7 @@ object ZDD {
     }
 
     if (i + 1 < domain.size) matchV(List(edge.u, edge.v) diff domain(i+1))
-    else {
-      matchV(List(edge.v))
-      /*
-      val result1 = matchV(List(edge.v))
-      val result2 = matchV(List(edge.u))
-      println("r1: "+ result1)
-      println("r2: "+ result2)
-      result1
-      */
-    }
-
+    else matchV(List(edge.v))
   }
 
   def oneChildIsIncompatible[T](i: Int, g: Graph[T], n: ELM[T], h: List[VertexPair[T]], domain: Map[Int, List[Vertex[T]]]): Boolean = {
@@ -199,9 +174,9 @@ object ZDD {
       val mateU = mateTable(edge.u)
       val mateV = mateTable(edge.v)
 
-      if (hFlat.contains(edge.v) && mateTable(edge.v) != edge.v) {println(2); true}
-      else if (hFlat.contains(edge.u) && mateTable(edge.u) != edge.u) {println(3); true}
-      else if (hUnionVDiff.contains(mateU) && hUnionVDiff.contains(mateV) && !h.contains(VertexPair(mateU, mateV)) ) {println(4); true}
+      if (hFlat.contains(edge.v) && mateTable(edge.v) != edge.v) true
+      else if (hFlat.contains(edge.u) && mateTable(edge.u) != edge.u) true
+      else if (hUnionVDiff.contains(mateU) && hUnionVDiff.contains(mateV) && !h.contains(VertexPair(mateU, mateV))) true
       else false
     } else {
       false
@@ -221,23 +196,36 @@ object ZDD {
 
     val zddList: List[Node[T]] =
       for (i <- g.edges.indices.toList; n <- N(i)) yield {
-        // basically need to keep what we have, but add more
         val zeroChild =
           if (zeroChildIsIncompatible(i, n, h, domain)) zeroTerminal
           else if (i+1 < numEdges) getZeroChild(i, g, n, domain)
           else oneTerminal
 
-        val oneChild =
+        val oneChildTmp =
           if (rejectEdge(n, g.edges(i))) zeroTerminal
-          else if (oneChildIsIncompatible(i, g, n, h, domain))  zeroTerminal
-          //else if (haveSolutionSkipSubPaths(n, h))
-          else if (i+1 < numEdges)  getOneChild(i, g, n, domain)
+          else if (oneChildIsIncompatible(i, g, n, h, domain)) zeroTerminal
+          else if (i+1 < numEdges) getOneChild(i, g, n, domain)
           else oneTerminal
+
+        val oneChild = oneChildTmp match {
+          case `zeroTerminal` => oneChildTmp
+          case `oneTerminal` => oneChildTmp
+          case ELM(e, mate) =>
+            val quickSolution =
+            for  {
+              (u,v) <- mate
+              if u != v
+              if mate(u) == v || mate(v) == u
+              if h.contains(VertexPair(u, v)) || h.contains(VertexPair(v, u))
+            } yield (u,v)
+
+            if (quickSolution.isEmpty) oneChildTmp
+            else oneTerminal
+        }
 
         buildFrontier(i+1, N, List(zeroChild, oneChild))
         Node(n, zeroChild, oneChild)
       }
-    zddList.foreach(println)
     buildZDD(zddList.toList)
   }
 }

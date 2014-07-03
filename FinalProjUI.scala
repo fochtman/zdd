@@ -4,10 +4,10 @@
 
 import scala.swing._
 import scala.swing.BorderPanel.Position._
-import event._
 import java.awt.{ Color, Graphics2D, RenderingHints, BasicStroke }
-import scala.util.Random
-import scala.math.{ sin, cos, round, Pi }
+//import scala.util.Random
+//import event._
+//import scala.math.{ sin, cos, round, Pi }
 
 import Graph._
 import ZDD._
@@ -29,29 +29,26 @@ object FinalProjUI  extends SimpleSwingApplication {
         })
       }
     }
-    /*
+
     val pG = pqrsGraph.g
-    val jZDD = algorithmOne(pG)
-    println(countZDDOnePaths(jZDD))
-    */
-    /*
+    val jZDD = algorithmTwo(pG, pqrsGraph.h)
+    println("pg: "+ countZDDOnePaths(jZDD))
+
     val lineG = lineGraph.g
     val lineZDD = algorithmTwo(lineG, lineGraph.h)
-    println(lineZDD)
     println("lineG: "+ countZDDOnePaths(lineZDD))
-    */
 
-
-    val fourG = gridGraph4by4.g
-    val ZDD = algorithmTwo(fourG, gridGraph4by4.h)
+    val fourG = gridGraph2by2.g
+    val ZDD = algorithmTwo(fourG, gridGraph2by2.h)
     println("fourG: "+ countZDDOnePaths(ZDD))
 
-
-/*
     val gGraph = gridGraph.g
-    val jj = algorithmTwo(gGraph, gridGraph.h)
-    println("eightG: "+ countZDDOnePaths(jj))
- */
+    val g88 = algorithmTwo(gGraph, gridGraph.h)
+    println("eightG: "+ countZDDOnePaths(g88))
+
+    val g23Graph = gridGraph23.g
+    val g23 = algorithmTwo(g23Graph, gridGraph23.h)
+    println("23G: "+ countZDDOnePaths(g23))
   }
 }
 
@@ -67,9 +64,11 @@ object pqrsGraph {
   val qs = Edge(q, s)
   val edgeList = List(pq, pr, qr, qs)
   val g = new Graph(vertexList, edgeList)
+
+  val h = List(VertexPair(p, s))
 }
 
-object gridGraph4by4 {
+object gridGraph2by2 {
   val vList = List.range(1, 5) map (x => Vertex(x, x - 1))
   val e1 = Edge(vList(0), vList(1))
   val e2 = Edge(vList(0), vList(2))
@@ -82,16 +81,33 @@ object gridGraph4by4 {
 }
 
 object lineGraph {
-  val vList = List.range(1, 5) map (x => Vertex(x, x - 1))
+  val vList = List.range(1, 6) map (x => Vertex(x, x - 1))
   val e1 = Edge(vList(0), vList(1))
   val e2 = Edge(vList(1), vList(2))
   val e3 = Edge(vList(2), vList(3))
-  val eList = List(e1, e2, e3)
+  val e4 = Edge(vList(2), vList(4))
+  val eList = List(e1, e2, e3, e4)
   val g = new Graph(vList, eList)
 
   val h = List(VertexPair(vList(0), vList(3)))
 }
 
+object gridGraph23 {
+
+  val vList = List.range(1,7) map (x => Vertex(x, x-1))
+  val e1 = Edge(vList(0), vList(1))
+  val e2 = Edge(vList(0), vList(3))
+  val e3 = Edge(vList(1), vList(2))
+  val e4 = Edge(vList(1), vList(4))
+  val e5 = Edge(vList(2), vList(5))
+  val e6 = Edge(vList(3), vList(4))
+  val e7 = Edge(vList(4), vList(5))
+  val eList = List(e1, e2, e3, e4, e5, e6, e7)
+  val g = new Graph(vList, eList)
+
+  val h = List(VertexPair(vList(0), vList(5)))
+  //val pp = algorithmOne(gg)
+}
 
 object gridGraph {
 
@@ -112,7 +128,6 @@ object gridGraph {
   val g = new Graph(vList, eList)
 
   val h = List(VertexPair(vList(0), vList(8)))
-  //val pp = algorithmOne(gg)
 }
 
 class Canvas extends Panel {
