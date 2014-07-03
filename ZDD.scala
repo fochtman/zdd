@@ -1,11 +1,6 @@
-/**
- * Created by Tyler on 6/24/2014.
- */
 import Graph._
-
 import scala.collection.mutable.HashMap
 import collection.immutable.ListMap
-//import scala.reflect.ClassTag
 
 object ZDD {
   abstract class ZDD
@@ -26,12 +21,12 @@ object ZDD {
     val value = 1
   }
 
-  def compareVertOrder[T](v0: Vertex[T], v1: Vertex[T]) = v0.order < v1.order
+  def compareVertByOrder[T](v0: Vertex[T], v1: Vertex[T]) = v0.order < v1.order
 
   def dom[T](i: Int, edges: List[Edge[T]]): List[(Int, List[Vertex[T]])] = edges match {
     case Nil => Nil
     case head :: tail =>
-      val sortedDom = edges.flatMap(e => List(e.u, e.v)).distinct.sortWith(compareVertOrder)
+      val sortedDom = edges.flatMap(e => List(e.u, e.v)).distinct.sortWith(compareVertByOrder)
       (i, sortedDom) :: Nil ::: dom(i+1, tail)
   }
 
@@ -64,7 +59,8 @@ object ZDD {
         else if (n.mates(w) == thisEdge.v) n.mates(thisEdge.u)
         else n.mates(w)
       }
-    val mates = ListMap((for ((v,v0)<- domain(i+1) zip mateUpdate) yield {(v,v0)}):_*)
+    val mates = ListMap(domain(i+1) zip mateUpdate:_*)
+    //val mates = ListMap((for ((v,v0)<- domain(i+1) zip mateUpdate) yield {(v,v0)}):_*)
     ELM(g.edges(i+1), mates)
   }
 
@@ -82,16 +78,17 @@ object ZDD {
 
   def countZDDOnePaths(root: ZDD): Int = {
     val resultTable = HashMap[ZDD, Int]()
-    def patMat(node: ZDD): Int = node match {
-      case Node(_, lo, hi) =>
-        resultTable(node) = countHelper(lo) + countHelper(hi)
-        resultTable(node)
-    }
     def countHelper(node: ZDD): Int = {
       if (node == `zeroTerminal`) 0
       else if (node == `oneTerminal`) 1
       else if (resultTable.contains(node)) 0
-      else patMat(node)
+      else {
+        node match {
+          case Node(_, lo, hi) =>
+            resultTable(node) = countHelper(lo) + countHelper(hi)
+            resultTable(node)
+        }
+      }
     }
     countHelper(root)
   }

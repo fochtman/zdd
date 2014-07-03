@@ -1,7 +1,3 @@
-/**
- * Created by Tyler on 6/26/2014.
- */
-
 import scala.swing._
 import scala.swing.BorderPanel.Position._
 import java.awt.{ Color, Graphics2D, RenderingHints, BasicStroke }
@@ -29,27 +25,76 @@ object FinalProjUI  extends SimpleSwingApplication {
         })
       }
     }
-
-    val pG = pqrsGraph.g
-    val jZDD = algorithmTwo(pG, pqrsGraph.h)
-    println("pg: "+ countZDDOnePaths(jZDD))
-
-    val lineG = lineGraph.g
-    val lineZDD = algorithmTwo(lineG, lineGraph.h)
-    println("lineG: "+ countZDDOnePaths(lineZDD))
-
-    val fourG = gridGraph2by2.g
-    val ZDD = algorithmTwo(fourG, gridGraph2by2.h)
-    println("fourG: "+ countZDDOnePaths(ZDD))
-
-    val gGraph = gridGraph.g
-    val g88 = algorithmTwo(gGraph, gridGraph.h)
+/*
+    val fourGb = Graph.gridGraph(2, 2)
+    val threeGb = Graph.gridGraph(3, 3)
+    //val h = List(VertexPair(vList(0), vList(3)))
+    val ZDDb = algorithmTwo(fourGb, gridGraph2by2.h)
+    println("fourGb: "+ countZDDOnePaths(ZDDb))
+    val g88 = algorithmTwo(threeGb, gridGraph.h)
     println("eightG: "+ countZDDOnePaths(g88))
-
-    val g23Graph = gridGraph23.g
-    val g23 = algorithmTwo(g23Graph, gridGraph23.h)
-    println("23G: "+ countZDDOnePaths(g23))
+    */
+    val big = Graph.gridGraph(2,2)
+    val h = List(VertexPair(big.vertices(0), big.vertices.last))
+    val bigZDD = algorithmTwo(big, h)
+    println("finished building")
+    println("big: "+ countZDDOnePaths(bigZDD))
   }
+}
+
+object zorn  {
+  val yellowOchre = new Color(245, 197, 44)
+  val cadmiumRedMedium = new Color(196, 1, 45)
+  val ivoryBlack = new Color(40, 36, 34)
+  val titaniumWhite = new Color(244, 237, 237)
+  val blend = new Color(181, 117, 90, 50)
+  val YBW = List[Color](yellowOchre, ivoryBlack, titaniumWhite)
+  val palette = List[Color](yellowOchre, cadmiumRedMedium, ivoryBlack, titaniumWhite)
+  val blended = blendPalette(palette)
+
+  def blendPalette(palette: List[Color]): List[Color] = {
+    def f(c1: Int, c2: Int) = (c1+c2)/2
+    for (i <- palette; j <- palette) yield {
+      new Color(f(i.getRed, j.getRed), f(i.getGreen, j.getGreen), f(i.getBlue, j.getBlue))
+    }
+  }
+
+}
+
+class Canvas extends Panel {
+
+  val bzl = zorn.blended.length
+  val twoStroke = new BasicStroke(2)
+  val fourStroke = new BasicStroke(4)
+  val fiveStroke = new BasicStroke(5)
+  val jump = 64
+  val innerRect = jump + jump/2
+  val innerRectWidthHeight = size.width - (innerRect * 2)
+
+  //g.setStroke(new BasicStroke(5, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL))
+  override def paintComponent(g: Graphics2D) {
+    g.clearRect(0, 0, size.width, size.height)
+    g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
+    g.setBackground(zorn.ivoryBlack)
+
+    //g.setColor(zornBlend)
+    //g.fillRect(innerRect, innerRect, innerRectWidthHeight, innerRectWidthHeight)
+    for (i <- Range(jump, size.width-innerRect) by jump;
+         j <- Range(jump, size.height-innerRect) by jump) {
+
+      g.setColor(zorn.ivoryBlack)
+      g.setStroke(twoStroke)
+      g.drawRect(i, j, jump, jump)
+
+      //g.setColor(zorn.ivoryBlack)
+      //g.setStroke(twoStroke)
+      //g.drawRect(i, j, jump, jump)
+
+      //g.setColor(blendedZorn(Random.nextInt(bzl)))
+      //g.fillOval(i, j, jump, jump)
+    }
+  }
+
 }
 
 object pqrsGraph {
@@ -66,116 +111,9 @@ object pqrsGraph {
   val g = new Graph(vertexList, edgeList)
 
   val h = List(VertexPair(p, s))
-}
-
-object gridGraph2by2 {
-  val vList = List.range(1, 5) map (x => Vertex(x, x - 1))
-  val e1 = Edge(vList(0), vList(1))
-  val e2 = Edge(vList(0), vList(2))
-  val e3 = Edge(vList(1), vList(3))
-  val e4 = Edge(vList(2), vList(3))
-  val eList = List(e1, e2, e3, e4)
-  val g = new Graph(vList, eList)
-
-  val h = List(VertexPair(vList(0), vList(3)))
-}
-
-object lineGraph {
-  val vList = List.range(1, 6) map (x => Vertex(x, x - 1))
-  val e1 = Edge(vList(0), vList(1))
-  val e2 = Edge(vList(1), vList(2))
-  val e3 = Edge(vList(2), vList(3))
-  val e4 = Edge(vList(2), vList(4))
-  val eList = List(e1, e2, e3, e4)
-  val g = new Graph(vList, eList)
-
-  val h = List(VertexPair(vList(0), vList(3)))
-}
-
-object gridGraph23 {
-
-  val vList = List.range(1,7) map (x => Vertex(x, x-1))
-  val e1 = Edge(vList(0), vList(1))
-  val e2 = Edge(vList(0), vList(3))
-  val e3 = Edge(vList(1), vList(2))
-  val e4 = Edge(vList(1), vList(4))
-  val e5 = Edge(vList(2), vList(5))
-  val e6 = Edge(vList(3), vList(4))
-  val e7 = Edge(vList(4), vList(5))
-  val eList = List(e1, e2, e3, e4, e5, e6, e7)
-  val g = new Graph(vList, eList)
-
-  val h = List(VertexPair(vList(0), vList(5)))
-  //val pp = algorithmOne(gg)
-}
-
-object gridGraph {
-
-  val vList = List.range(1,13) map (x => Vertex(x, x-1))
-  val e1 = Edge(vList(0), vList(1))
-  val e2 = Edge(vList(0), vList(3))
-  val e3 = Edge(vList(1), vList(2))
-  val e4 = Edge(vList(1), vList(4))
-  val e5 = Edge(vList(2), vList(5))
-  val e6 = Edge(vList(3), vList(4))
-  val e7 = Edge(vList(3), vList(6))
-  val e8 = Edge(vList(4), vList(5))
-  val e9 = Edge(vList(4), vList(7))
-  val e10 = Edge(vList(5), vList(8))
-  val e11 = Edge(vList(6), vList(7))
-  val e12 = Edge(vList(7), vList(8))
-  val eList = List(e1, e2, e3, e4, e5, e6, e7, e8, e9, e10, e11, e12)
-  val g = new Graph(vList, eList)
-
-  val h = List(VertexPair(vList(0), vList(8)))
-}
-
-class Canvas extends Panel {
-  val yellowOchre = new Color(245, 197, 44)
-  val cadmiumRedMedium = new Color(196, 1, 45)
-  val ivoryBlack = new Color(40, 36, 34)
-  val titaniumWhite = new Color(244, 237, 237)
-
-  val zornBlend = new Color(181, 117, 90, 50)
-  val zornYBW = List[Color](yellowOchre, ivoryBlack, titaniumWhite)
-  val zornPalette = List[Color](yellowOchre, cadmiumRedMedium, ivoryBlack, titaniumWhite)
-  val blendedZorn = blendPalette(zornPalette)
-  //val blendedZorn = blendPalette(zornYBW)
-  val bzl = blendedZorn.length
-  val fiveStroke = new BasicStroke(5)
-  val twoStroke = new BasicStroke(2)
-  val jump = 64
-  val innerRect = jump + jump/2
-  val innerRectWidthHeight = size.width - (innerRect * 2)
-
-  //g.setStroke(new BasicStroke(5, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL))
-  override def paintComponent(g: Graphics2D) {
-    g.clearRect(0, 0, size.width, size.height)
-    g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
-    g.setBackground(ivoryBlack)
-
-    //g.setColor(zornBlend)
-    //g.fillRect(innerRect, innerRect, innerRectWidthHeight, innerRectWidthHeight)
-    for (i <- Range(jump, size.width-innerRect) by jump;
-         j <- Range(jump, size.height-innerRect) by jump) {
-
-      g.setColor(zornBlend)
-      g.setStroke(fiveStroke)
-      g.drawRect(i, j, jump, jump)
-
-      g.setColor(ivoryBlack)
-      g.setStroke(twoStroke)
-      g.drawRect(i, j, jump, jump)
-
-      //g.setColor(blendedZorn(Random.nextInt(bzl)))
-      //g.fillOval(i, j, jump, jump)
-    }
-  }
-
-  def blendPalette(palette: List[Color]): List[Color] = {
-    def f(c1: Int, c2: Int) = (c1+c2)/2
-    for (i <- palette; j <- palette) yield {
-      new Color(f(i.getRed(), j.getRed()), f(i.getGreen(), j.getGreen()), f(i.getBlue(), j.getBlue()))
-    }
-  }
+  /*
+  val pG = pqrsGraph.g
+  val jZDD = algorithmTwo(pG, pqrsGraph.h)
+  println("pg: "+ countZDDOnePaths(jZDD))
+  */
 }
