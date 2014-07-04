@@ -21,18 +21,15 @@ object ZDD {
     val value = 1
   }
 
-  def compareVertByOrder[T](v0: Vertex[T], v1: Vertex[T]) = v0.order < v1.order
-
   def dom[T](i: Int, edges: List[Edge[T]]): List[(Int, List[Vertex[T]])] = edges match {
     case Nil => Nil
     case head :: tail =>
-      val sortedDom = edges.flatMap(e => List(e.u, e.v)).distinct.sortWith(compareVertByOrder)
+      val sortedDom = edges.flatMap(e => List(e.u, e.v)).distinct.sortWith((v0,v1) => v0.order < v1.order)
       (i, sortedDom) :: Nil ::: dom(i+1, tail)
   }
 
   def getMates[T](edgeDomain: List[Vertex[T]], m: List[Vertex[T]]): Map[Vertex[T], Vertex[T]] = {
-    val tupleList = for ((v0,v1) <- edgeDomain zip m) yield {(v0, v1)}
-    ListMap(tupleList:_*)
+    ListMap(edgeDomain zip m:_*)
   }
 
   def getZeroChild[T](i: Int, g: Graph[T], n: ELM[T], domain: Map[Int, List[Vertex[T]]]): ELM[T] = {
@@ -60,7 +57,6 @@ object ZDD {
         else n.mates(w)
       }
     val mates = ListMap(domain(i+1) zip mateUpdate:_*)
-    //val mates = ListMap((for ((v,v0)<- domain(i+1) zip mateUpdate) yield {(v,v0)}):_*)
     ELM(g.edges(i+1), mates)
   }
 
