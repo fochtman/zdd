@@ -21,6 +21,16 @@ object ZDD {
     val value = 1
   }
 
+
+  def setupFrontier[T](g: Graph[T], domain: Map[Int, List[Vertex[T]]]) = {
+    val firstEdge = g.edges(0)
+    val rootMates = getMates(domain(0), g.vertices)
+    val rootParams = ELM(firstEdge, rootMates)
+    val frontier = HashMap[Int, Set[ELM[T]]](0 -> Set(rootParams))
+    Range(1, g.edges.length) map (i => frontier(i) = Set())
+    frontier
+  }
+
   def dom[T](i: Int, edges: List[Edge[T]]): List[(Int, List[Vertex[T]])] = edges match {
     case Nil => Nil
     case head :: tail =>
@@ -60,15 +70,15 @@ object ZDD {
     ELM(g.edges(i+1), mates)
   }
 
-  def buildFrontier[T](i: Int, N: HashMap[Int, Set[ELM[T]]], children: List[ZDD]): Unit = children match {
+  def addNextFrontier[T](i: Int, N: HashMap[Int, Set[ELM[T]]], children: List[ZDD]): Unit = children match {
     case Nil => ()
     case (head: ELM[T]) :: tail =>
       N(i) = N(i) + head
-      buildFrontier(i, N, tail)
+      addNextFrontier(i, N, tail)
     case `zeroTerminal` :: tail =>
-      buildFrontier(i, N, tail)
+      addNextFrontier(i, N, tail)
     case `oneTerminal` :: tail =>
-      buildFrontier(i, N, tail)
+      addNextFrontier(i, N, tail)
     case _ => ()
   }
 
@@ -90,6 +100,7 @@ object ZDD {
   }
 
   def buildZDD[T](zddList: List[Node[T]]): Node[T] = {
+    //val paramsNode = zddList map (node => (node.params, node))
     val paramsNode = for {
       n <- zddList.toList
       p = n.params
@@ -116,28 +127,29 @@ object ZDD {
 
   def algorithmOne[T](g: Graph[T]): Node[T] = {
     val domain = Map.empty ++ dom(0, g.edges)
-    val firstEdge = g.edges(0)
-    val rootMates = getMates(domain(0), g.vertices)
-    val rootParams = ELM(firstEdge, rootMates)
-    val N = HashMap[Int, Set[ELM[T]]]()
-    N(0) = Set(rootParams)
-    val numEdges = g.edges.length
-    Range(1, numEdges) map (i => N(i) = Set())
+    val frontier = setupFrontier(g, domain)
+    val edgeIndices = g.edges.indices.toList
 
     val zddList: List[Node[T]] =
-      for (i <- g.edges.indices.toList; n <- N(i)) yield {
-        val zeroChild =
-          if (i+1 < numEdges) getZeroChild(i, g, n, domain)
-          else                oneTerminal
-        val oneChild =
-          if (rejectEdge(n, g.edges(i)))  zeroTerminal
-          else if (i+1 < numEdges)        getOneChild(i, g, n, domain)
-          else                            oneTerminal
+      for {
+        i <- edgeIndices
+        n <- frontier(i)
+      } yield {
 
-        buildFrontier(i+1, N, List(zeroChild, oneChild))
+        val zeroChild = if (i+1 < edgeIndices.length) getZeroChild(i, g, n, domain)
+          else oneTerminal
+
+        val oneChild = if (rejectEdge(n, g.edges(i))) zeroTerminal
+          else if (i+1 < edgeIndices.length) getOneChild(i, g, n, domain)
+          else oneTerminal
+
+        addNextFrontier(i+1, frontier, List(zeroChild, oneChild))
         Node(n, zeroChild, oneChild)
       }
-    buildZDD(zddList.toList)
+    println("---------------------------------")
+    zddList.foreach(println)
+    println("---------------------------------")
+    buildZDD(zddList)
   }
 
   def zeroChildIsIncompatible[T](i: Int, n: ELM[T], h: List[VertexPair[T]], domain: Map[Int, List[Vertex[T]]]): Boolean = {
@@ -216,7 +228,7 @@ object ZDD {
             else oneTerminal
         }
 
-        buildFrontier(i+1, N, List(zeroChild, oneChild))
+        addNextFrontier(i+1, N, List(zeroChild, oneChild))
         Node(n, zeroChild, oneChild)
       }
     zddList.foreach(println)

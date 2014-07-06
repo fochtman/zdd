@@ -1,7 +1,7 @@
 object Graph {
 
   case class Vertex[T](id: T, order: Int) {
-    override def toString = ""+id+""
+    override def toString = "v("+id+", "+order+")"
   }
 
   case class Edge[T](u: Vertex[T], v: Vertex[T])
@@ -42,8 +42,10 @@ object Graph {
 
       val hEdges = horizontalEdges.map(e => Edge(ijToVertex(e._1), ijToVertex(e._2)))
       val vEdges = verticalEdges.map(e => Edge(ijToVertex(e._1), ijToVertex(e._2)))
+
       // a heuristic to (generally) reduce the size of the resulting zdd
       val edgeList = (hEdges ::: vEdges).sortWith(compareEdgeOrder)
+
 
       Graph(vertexList, edgeList)
     }

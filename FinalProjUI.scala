@@ -20,26 +20,30 @@ object FinalProjUI  extends SimpleSwingApplication {
           border = Swing.EmptyBorder(5,5,5,5)
           contents += new BoxPanel(Orientation.Vertical) {
             border = CompoundBorder(TitledBorder(EtchedBorder, "Grid Size"), EmptyBorder(5,5,5,10))
+            val oneOne = new RadioButton("1 x 1")
             val twoTwo = new RadioButton("2 x 2")
+            val threeThree = new RadioButton("3 x 3")
             val fourFour = new RadioButton("4 x 4")
             val eightEight = new RadioButton("8 x 8")
             val twoFour = new RadioButton("2 x 4")
 
-            twoTwo.selected = true
-
-            val mutex = new ButtonGroup(twoTwo, fourFour, eightEight, twoFour)
+            val mutex = new ButtonGroup(oneOne, twoTwo, threeThree, fourFour, eightEight, twoFour)
             contents ++= mutex.buttons
-            listenTo(twoTwo, fourFour, eightEight, twoFour)
+            listenTo(oneOne, twoTwo, fourFour, threeThree, eightEight, twoFour)
 
             reactions += {
-              case ButtonClicked(`twoTwo`) =>
+              case ButtonClicked(`oneOne`) =>
                 visualization.canvas.updateGraphDim(2,2)
-              case ButtonClicked(`fourFour`) =>
+              case ButtonClicked(`twoTwo`) =>
+                visualization.canvas.updateGraphDim(3,3)
+              case ButtonClicked(`threeThree`) =>
                 visualization.canvas.updateGraphDim(4,4)
+              case ButtonClicked(`fourFour`) =>
+                visualization.canvas.updateGraphDim(5,5)
               case ButtonClicked(`eightEight`) =>
-                visualization.canvas.updateGraphDim(8,8)
+                visualization.canvas.updateGraphDim(9,9)
               case ButtonClicked(`twoFour`) =>
-                visualization.canvas.updateGraphDim(2,4)
+                visualization.canvas.updateGraphDim(3,5)
             }
           }
 
@@ -49,16 +53,14 @@ object FinalProjUI  extends SimpleSwingApplication {
             val two = new RadioButton("two")
             val mutex = new ButtonGroup(one, two)
 
-            one.selected = true
-
             contents ++= mutex.buttons
             listenTo(one, two)
 
             reactions += {
               case ButtonClicked(`one`) =>
-                visualization.slider.paintLabels = one.selected
+                visualization.canvas.collectPathEdges(1)
               case ButtonClicked(`two`) =>
-                visualization.slider.paintTicks = two.selected
+                visualization.canvas.collectPathEdges(2)
             }
           }
         }
@@ -106,28 +108,13 @@ object FinalProjUI  extends SimpleSwingApplication {
 
 
 
-    def collectOneEdges[T](n: Node[T]): List[Edge[T]] = n match {
-      case Node(_, `oneTerminal`, _) => throw new NoSuchElementException
-      case Node(_, `zeroTerminal`, `zeroTerminal`) => Nil
-      case Node(p, `zeroTerminal`, `oneTerminal`) => p.edgeLabel :: Nil
-      case Node(p, `zeroTerminal`, hi: Node[T]) =>
-        n.params.edgeLabel :: Nil ::: collectOneEdges(hi)
-      case n @ Node(p, lo: Node[T], hi: Node[T]) =>
-        n.params.edgeLabel :: Nil ::: collectOneEdges(hi) ::: collectOneEdges(lo)
-      case Node(p, lo: Node[T], _) =>
-        collectOneEdges(lo)
-    }
-
-    /*
-    //TODO: starting point of next workflow
-    def processOneEdges[T](edges: List[Edge[T]], PairMatchings): Unit = edges match {
-      //case Edge(e0, e1) if e0
-    }
-    */
 }
 
 
 class Canvas extends Panel {
+
+  private var pathEdges = List[List[Edge[Int]]]()
+
   private val jump = 64
 
   // perhaps make this apart of a companion object to the canvas class
@@ -135,13 +122,13 @@ class Canvas extends Panel {
 
   // Hack Alert by way of the 640 constant.
   // center gridGraph
-  private var xOrigin = (640 - (jump * gridGraph.colNum)) / 2
-  private var yOrigin = (640 - (jump * gridGraph.rowNum)) / 2
+  private var xOrigin = (640 - (jump * gridGraph.colNum-1)) / 2
+  private var yOrigin = (640 - (jump * gridGraph.rowNum-1)) / 2
 
-  private var xMax = xOrigin + gridGraph.colNum * jump
+  private var xMax = xOrigin + (gridGraph.colNum-1) * jump
   private var xAxis = Range(xOrigin, xMax) by jump
 
-  private var yMax = yOrigin + gridGraph.rowNum * jump
+  private var yMax = yOrigin + (gridGraph.rowNum-1) * jump
   private var yAxis = Range(yOrigin , yMax) by jump
 
   val bzl = zorn.blended.length
@@ -150,41 +137,87 @@ class Canvas extends Panel {
   val eightStroke = new BasicStroke(8)
   val sixteenStroke = new BasicStroke(16)
 
-  //g.setStroke(new BasicStroke(5, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL))
   override def paintComponent(g: Graphics2D) {
     g.setBackground(zorn.titaniumWhite)
     g.clearRect(0, 0, size.width, size.height)
     g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
 
-
     g.setStroke(eightStroke)
     g.setColor(zorn.ivoryBlack)
+    println(xAxis)
+    println(yAxis)
     xAxis map (i => yAxis map (j => g.drawRect(i, j, jump, jump)))
+    //g.drawPolygon(Array(0, 60, 60, 0), Array(0, 0, 60, 60), 4)
 
-    g.setStroke(fourStroke)
-    g.setColor(zorn.titaniumWhiteAlpha)
-    xAxis map (i => yAxis map (j => g.drawRect(i, j, jump, jump)))
-
-    g.setStroke(sixteenStroke)
-    //g.setColor(zorn.cadmiumRedMediumAlpha)
-    g.setColor(new Color(0, 0, 250, 32))
-    xAxis map (i => yAxis map (j => g.drawLine(i, j+jump, i+jump, j+jump)))
-    //g.setColor(zorn.blended(Random.nextInt(bzl)))
-    //g.fillRect(i, j, jump, jump)
+    //g.setStroke(new BasicStroke(16, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND))
+    //g.setColor(zorn.yellowOchreAlpha)
+    //xAxis map (i => yAxis map (j => g.drawLine(i, j+jump, i+jump, j+jump)))
   }
+  //g.setColor(zorn.cadmiumRedMediumAlpha)
+  //g.setColor(zorn.blended(Random.nextInt(bzl)))
+  //g.setStroke(fourStroke)
+  //g.setColor(zorn.titaniumWhiteAlpha)
+  //xAxis map (i => yAxis map (j => g.drawRect(i, j, jump, jump)))
 
   def updateGraphDim(m: Int, n: Int) {
     gridGraph = new GridGraph(m, n)
 
-    xOrigin = (640 - (jump * gridGraph.colNum)) / 2
-    yOrigin = (640 - (jump * gridGraph.rowNum)) / 2
+    xOrigin = (size.width - (jump * (gridGraph.colNum-1))) / 2
+    yOrigin = (size.height - (jump * (gridGraph.rowNum-1))) / 2
 
-    xMax = xOrigin + gridGraph.colNum * jump
+    xMax = xOrigin + (gridGraph.colNum-1) * jump
     xAxis = Range(xOrigin, xMax) by jump
 
-    yMax = yOrigin + gridGraph.rowNum * jump
+    yMax = yOrigin + (gridGraph.rowNum-1) * jump
     yAxis = Range(yOrigin , yMax) by jump
   }
+
+  // in general need a method that builds zdd based on chosen grid graph and algorithm algorithm
+  // ---> for now if it is algorithm 2 i will force them to choose top left and bottom right vertices
+  // once the zdd is constructed, find all one paths,
+  // ---> a) store them in a list,
+  //      b) link the slider to index the list
+  //      c) update the slider ticks
+  //      d) repaint when slider is moved
+
+  // each tick will be a List(List[Edge[T]))
+
+  def collectOneEdges[T](n: Node[T]): List[Edge[T]] = n match {
+    case Node(_, `oneTerminal`, _) => throw new NoSuchElementException
+    case Node(_, `zeroTerminal`, `zeroTerminal`) => Nil
+    case Node(p, `zeroTerminal`, `oneTerminal`) => p.edgeLabel :: Nil
+    case nn @ Node(p, `zeroTerminal`, hi: Node[T]) =>
+      nn.params.edgeLabel :: Nil ::: collectOneEdges(hi)
+    case nn @ Node(p, lo: Node[T], hi: Node[T]) =>
+      nn.params.edgeLabel :: Nil ::: collectOneEdges(hi) ::: collectOneEdges(lo)
+    case Node(p, lo: Node[T], _) =>
+      collectOneEdges(lo)
+  }
+
+  def collectPathEdges(choice: Int) = {
+    val zdd = if (choice == 1)
+        algorithmOne(gridGraph.graph)
+      else {
+        val h = List(VertexPair(gridGraph.graph.vertices(0), gridGraph.graph.vertices.last))
+        algorithmTwo(gridGraph.graph, h)
+    }
+    val numOnePaths = countZDDOnePaths(zdd)
+    //slider.max = numOnePaths
+    println(numOnePaths)
+    val unoEdges = collectOneEdges(zdd)
+    println("--------------------------")
+    unoEdges.foreach(println)//(unoEdges)
+    println("--------------------------")
+    // val drawableEdges = processOneEdges(oneEdges)
+
+
+  }
+  /*
+  //TODO: starting point of next workflow
+  def processOneEdges[T](edges: List[Edge[T]], PairMatchings): Unit = edges match {
+    //case Edge(e0, e1) if e0
+  }
+  */
 
 }
 
@@ -214,8 +247,11 @@ object zorn  {
   val cadmiumRedMedium = new Color(196, 1, 45)
   val ivoryBlack = new Color(40, 36, 34)
   val titaniumWhite = new Color(244, 237, 237)
+
+  val yellowOchreAlpha = new Color(245, 197, 44, 128)
+  val cadmiumRedMediumAlpha = new Color(196, 1, 45, 128)
   val titaniumWhiteAlpha = new Color(244, 237, 237, 64)
-  val cadmiumRedMediumAlpha = new Color(196, 1, 45, 32)
+
   val blend = new Color(181, 117, 90, 150)
   val YBW = List[Color](yellowOchre, ivoryBlack, titaniumWhite)
   val palette = List[Color](yellowOchre, cadmiumRedMedium, ivoryBlack, titaniumWhite)
