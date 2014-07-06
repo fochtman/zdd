@@ -2,6 +2,7 @@ object Graph {
 
   case class Vertex[T](id: T, order: Int) {
     //override def toString = "v("+id+", "+order+")"
+    //override def toString = "v("+id+")"
     override def toString = ""+id+""
   }
 
@@ -24,28 +25,43 @@ object Graph {
   class GridGraph(m: Int, n: Int) {
     val rowNum = m
     val colNum = n
-    val graph = buildGridGraph(rowNum, colNum)
+    val graph = buildGridGraph(m, n)
+    val vertexToCoord =
+      Map(graph.vertices zip
+        ((1 to m).toList flatMap(i =>
+          (1 to n).toList map(j =>
+            (j, i)))):_*)
 
     def buildGridGraph(m: Int, n: Int): Graph[Int] = {
       val rows = (1 to m).toList
       val cols = (1 to n).toList
-      val vertexList = (1 to m * n).toList.map(i => Vertex(i, i - 1))
-      val nodeCoords = rows.flatMap(i => cols.map(j => (i, j)))
-      val ijToVertex = Map(nodeCoords zip vertexList: _*)
+
+      val vertexList =
+        (1 to rowNum * colNum).toList map(i =>
+          Vertex(i, i - 1))
+
+      val nodeCoords =
+        rows flatMap(i =>
+          cols map(j =>
+            (i, j)))
+
+      val coordToVertex = Map(nodeCoords zip vertexList: _*)
+      println(coordToVertex)
 
       val horizontalEdges =
         rows.flatMap(i =>
           cols.withFilter(j => j < n).map(j => ((i, j), (i, j + 1))))
+
       val verticalEdges =
         rows.withFilter(i => i < m).flatMap(i =>
           cols.map(j => ((i, j), (i + 1, j))))
 
-      val hEdges = horizontalEdges.map(e => Edge(ijToVertex(e._1), ijToVertex(e._2)))
-      val vEdges = verticalEdges.map(e => Edge(ijToVertex(e._1), ijToVertex(e._2)))
+      val allEdges =
+        (horizontalEdges ::: verticalEdges) map(e =>
+          Edge(coordToVertex(e._1), coordToVertex(e._2)))
 
       // a heuristic to (generally) reduce the size of the resulting zdd
-      val edgeList = (hEdges ::: vEdges).sortWith(compareEdgeOrder)
-
+      val edgeList = allEdges.sortWith(compareEdgeOrder)
       Graph(vertexList, edgeList)
     }
   }

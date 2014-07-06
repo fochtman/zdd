@@ -22,19 +22,22 @@ object FinalProjUI  extends SimpleSwingApplication {
           contents += new BoxPanel(Orientation.Vertical) {
             border = CompoundBorder(TitledBorder(EtchedBorder, "Grid Size"), EmptyBorder(5, 5, 5, 10))
             val oneOne = new RadioButton("1 x 1")
+            val oneTwo = new RadioButton("1 x 2")
             val twoTwo = new RadioButton("2 x 2")
             val threeThree = new RadioButton("3 x 3")
             val fourFour = new RadioButton("4 x 4")
             val eightEight = new RadioButton("8 x 8")
             val twoFour = new RadioButton("2 x 4")
 
-            val mutex = new ButtonGroup(oneOne, twoTwo, threeThree, fourFour, eightEight, twoFour)
+            val mutex = new ButtonGroup(oneOne, oneTwo, twoTwo, threeThree, fourFour, eightEight, twoFour)
             contents ++= mutex.buttons
-            listenTo(oneOne, twoTwo, fourFour, threeThree, eightEight, twoFour)
+            listenTo(oneOne, oneTwo, twoTwo, fourFour, threeThree, eightEight, twoFour)
 
             reactions += {
               case ButtonClicked(`oneOne`) =>
                 visualization.canvas.updateGraphDim(2, 2)
+              case ButtonClicked(`oneTwo`) =>
+                visualization.canvas.updateGraphDim(2, 3)
               case ButtonClicked(`twoTwo`) =>
                 visualization.canvas.updateGraphDim(3, 3)
               case ButtonClicked(`threeThree`) =>
@@ -61,9 +64,11 @@ object FinalProjUI  extends SimpleSwingApplication {
               case ButtonClicked(`one`) =>
                 visualization.canvas.collectPathEdges(1)
                 visualization.slider.max = visualization.canvas.pathEdges.length - 1
+                visualization.slider.value = 0
               case ButtonClicked(`two`) =>
                 visualization.canvas.collectPathEdges(2)
                 visualization.slider.max = visualization.canvas.pathEdges.length - 1
+                visualization.slider.value = 0
             }
           }
         }
@@ -77,7 +82,7 @@ object FinalProjUI  extends SimpleSwingApplication {
             min = 0
             max = 0
             majorTickSpacing = 1
-            painTicks = true
+            paintTicks = true
           }
           layout(canvas) = Center
           layout(slider) = South
@@ -106,8 +111,8 @@ object FinalProjUI  extends SimpleSwingApplication {
 }
 
 class Canvas extends Panel {
-
   var pathEdges = List[String]()
+  var currentPath = List[((Int, Int), (Int, Int))]()
 
   private val jump = 64
 
@@ -120,10 +125,10 @@ class Canvas extends Panel {
   private var yOrigin = (640 - (jump * gridGraph.rowNum-1)) / 2
 
   private var xMax = xOrigin + (gridGraph.colNum-1) * jump
-  private var xAxis = Range(xOrigin, xMax) by jump
+  private var xAxis = (Range(xOrigin, xMax) by jump).toList
 
   private var yMax = yOrigin + (gridGraph.rowNum-1) * jump
-  private var yAxis = Range(yOrigin , yMax) by jump
+  private var yAxis = (Range(yOrigin , yMax) by jump).toList
 
   val bzl = zorn.blended.length
   val twoStroke = new BasicStroke(2)
@@ -139,17 +144,17 @@ class Canvas extends Panel {
     g.setStroke(eightStroke)
     g.setColor(zorn.ivoryBlack)
     xAxis map (i => yAxis map (j => g.drawRect(i, j, jump, jump)))
-    //g.drawPolygon(Array(0, 60, 60, 0), Array(0, 0, 60, 60), 4)
 
-    //g.setStroke(new BasicStroke(16, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND))
-    //g.setColor(zorn.yellowOchreAlpha)
-    //xAxis map (i => yAxis map (j => g.drawLine(i, j+jump, i+jump, j+jump)))
+    if (!currentPath.isEmpty) {
+      val x = xAxis ::: (xAxis.last + 64 :: Nil)
+      val y = yAxis ::: (yAxis.last + 64 :: Nil)
+      g.setStroke(new BasicStroke(16, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND))
+      g.setColor(zorn.yellowOchreAlpha)
+      for (cp <- currentPath) {
+        g.drawLine(x(cp._1._1-1), y(cp._1._2-1), x(cp._2._1-1), y(cp._2._2-1))
+      }
+    }
   }
-  //g.setColor(zorn.cadmiumRedMediumAlpha)
-  //g.setColor(zorn.blended(Random.nextInt(bzl)))
-  //g.setStroke(fourStroke)
-  //g.setColor(zorn.titaniumWhiteAlpha)
-  //xAxis map (i => yAxis map (j => g.drawRect(i, j, jump, jump)))
 
   def updateGraphDim(m: Int, n: Int): Unit = {
     gridGraph = new GridGraph(m, n)
@@ -158,30 +163,26 @@ class Canvas extends Panel {
     yOrigin = (size.height - (jump * (gridGraph.rowNum-1))) / 2
 
     xMax = xOrigin + (gridGraph.colNum-1) * jump
-    xAxis = Range(xOrigin, xMax) by jump
+    xAxis = (Range(xOrigin, xMax) by jump).toList
 
     yMax = yOrigin + (gridGraph.rowNum-1) * jump
-    yAxis = Range(yOrigin , yMax) by jump
+    yAxis = (Range(yOrigin , yMax) by jump).toList
   }
 
   def changePath(sliderValue: Int): Unit = {
-    println(sliderValue)
-    println(pathEdges(sliderValue))
+    val bStr = pathEdges(sliderValue).toList
+
+    val pathMap = bStr.zipWithIndex filter (x =>
+      x._1 == '1') map (index =>
+        gridGraph.graph.edges(index._2))
+
+    currentPath = pathMap.map (edge =>
+      (gridGraph.vertexToCoord(edge.u), gridGraph.vertexToCoord(edge.v)))
+
+    repaint()
   }
 
   //      d) repaint when slider is moved
-
-  def collectOneEdges[T](n: Node[T]): List[Edge[T]] = n match {
-    case Node(_, `oneTerminal`, _) => throw new NoSuchElementException
-    case Node(_, `zeroTerminal`, `zeroTerminal`) => Nil
-    case Node(p, `zeroTerminal`, `oneTerminal`) => p.edgeLabel :: Nil
-    case nn @ Node(p, `zeroTerminal`, hi: Node[T]) =>
-      nn.params.edgeLabel :: Nil ::: collectOneEdges(hi)
-    case nn @ Node(p, lo: Node[T], hi: Node[T]) =>
-      nn.params.edgeLabel :: Nil ::: collectOneEdges(hi) ::: collectOneEdges(lo)
-    case Node(p, lo: Node[T], _) =>
-      collectOneEdges(lo)
-  }
 
   def collectOneEdges[T](n: Node[T], i: Int): String = n match {
     case Node(_, `oneTerminal`, _) => throw new NoSuchElementException
@@ -190,40 +191,56 @@ class Canvas extends Panel {
 
     case Node(p, `zeroTerminal`, `oneTerminal`) => "1*"
 
-    case Node(p, `zeroTerminal`, hi: Node[T]) => "1" + collectOneEdgeStrings(hi, i+1)
+    case Node(p, `zeroTerminal`, hi: Node[T]) => "1" + collectOneEdges(hi, i+1)
 
-    case Node(p, lo: Node[T], hi: Node[T]) => "0" + collectOneEdgeStrings(lo, i+1) + "1" + collectOneEdgeStrings(hi, i+1)
+    case Node(p, lo: Node[T], hi: Node[T]) => "0" + collectOneEdges(lo, i+1) + "1" + collectOneEdges(hi, i+1)
 
-    case Node(p, lo: Node[T], _) => "0" + collectOneEdgeStrings(lo, i+1)
+    case Node(p, lo: Node[T], _) => "0" + collectOneEdges(lo, i+1)
   }
 
   def processPaths(allPaths: String): List[String] = {
-    val onePaths = (allPaths.split("""\*""").toList) filter (path => path.endsWith("1"))
-    val parent = onePaths.head
-    onePaths map (s => parent.dropRight(s.length) + s)
+    println(allPaths)
+    val onePaths = (allPaths.split("""\*""").toList) //filter (path => path.endsWith("1"))
+    onePaths match {
+      case head :: tail => onePaths map (s => head.dropRight (s.length) + s)
+      case Nil => Nil
+    }
   }
 
   def collectPathEdges(choice: Int): Unit = {
     val zdd = if (choice == 1)
         algorithmOne(gridGraph.graph)
       else {
-        val h = List(VertexPair(gridGraph.graph.vertices(0), gridGraph.graph.vertices.last))
+        //val v = gridGraph.graph.vertices
+        val h =
+          List(VertexPair(gridGraph.graph.vertices(0), gridGraph.graph.vertices.last))
         algorithmTwo(gridGraph.graph, h)
     }
 
     var headZero = zdd.loChild match {
-      case lo @ Node(_, _, _) => collectOneEdgeStrings(lo, 0)
+      case lo @ Node(_, _, _) => collectOneEdges(lo, 0)
       case _ => "empty"
     }
     headZero = "0" + headZero
 
     var headOne = zdd.hiChild match {
-      case hi @ Node(_, _, _) => collectOneEdgeStrings(hi, 0)
+      case hi @ Node(_, _, _) => collectOneEdges(hi, 0)
       case _ => "empty"
     }
     headOne = "1" + headOne
 
-    pathEdges = processPaths(headZero) ::: processPaths(headOne)
+    val zeroPs = processPaths(headZero)
+    println("~~0 ")
+    zeroPs.foreach(println)
+    println(" 0~~")
+    println()
+    val onePs = processPaths(headOne)
+    println("~~1 ")
+    onePs.foreach(println)
+    println("  1~~")
+
+    pathEdges = zeroPs ::: onePs
+    println(pathEdges.length)
   }
 
 }
