@@ -1,7 +1,8 @@
 object Graph {
 
   case class Vertex[T](id: T, order: Int) {
-    override def toString = "v("+id+", "+order+")"
+    //override def toString = "v("+id+", "+order+")"
+    override def toString = ""+id+""
   }
 
   case class Edge[T](u: Vertex[T], v: Vertex[T])
@@ -10,16 +11,15 @@ object Graph {
 
   case class VertexPair[T](v0: Vertex[T], v1: Vertex[T])
 
-  // lexicographical comparison
-  // edge order: {i, j} < {i', j'} iff (i < i') or (i == i' and j < j')
+  /* lexicographical comparison
+   * edge order: {i, j} < {i', j'} iff (i < i') or (i == i' and j < j')
+   */
   def compareEdgeOrder[T](a: Edge[T], b: Edge[T]) = {
     if (a.u.order < b.u.order) true
     else if (a.u.order == b.u.order && a.v.order < b.v.order) true
     else if (a.u.order == b.u.order && a.v.order == b.v.order) false
     else false
   }
-
-
 
   class GridGraph(m: Int, n: Int) {
     val rowNum = m
@@ -45,7 +45,6 @@ object Graph {
 
       // a heuristic to (generally) reduce the size of the resulting zdd
       val edgeList = (hEdges ::: vEdges).sortWith(compareEdgeOrder)
-
 
       Graph(vertexList, edgeList)
     }

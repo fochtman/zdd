@@ -14,12 +14,13 @@ object FinalProjUI  extends SimpleSwingApplication {
     contents = new BorderPanel {
 
       val tabs = new TabbedPane {
+
         import TabbedPane._
 
         val parameters = new FlowPanel {
-          border = Swing.EmptyBorder(5,5,5,5)
+          border = Swing.EmptyBorder(5, 5, 5, 5)
           contents += new BoxPanel(Orientation.Vertical) {
-            border = CompoundBorder(TitledBorder(EtchedBorder, "Grid Size"), EmptyBorder(5,5,5,10))
+            border = CompoundBorder(TitledBorder(EtchedBorder, "Grid Size"), EmptyBorder(5, 5, 5, 10))
             val oneOne = new RadioButton("1 x 1")
             val twoTwo = new RadioButton("2 x 2")
             val threeThree = new RadioButton("3 x 3")
@@ -33,22 +34,22 @@ object FinalProjUI  extends SimpleSwingApplication {
 
             reactions += {
               case ButtonClicked(`oneOne`) =>
-                visualization.canvas.updateGraphDim(2,2)
+                visualization.canvas.updateGraphDim(2, 2)
               case ButtonClicked(`twoTwo`) =>
-                visualization.canvas.updateGraphDim(3,3)
+                visualization.canvas.updateGraphDim(3, 3)
               case ButtonClicked(`threeThree`) =>
-                visualization.canvas.updateGraphDim(4,4)
+                visualization.canvas.updateGraphDim(4, 4)
               case ButtonClicked(`fourFour`) =>
-                visualization.canvas.updateGraphDim(5,5)
+                visualization.canvas.updateGraphDim(5, 5)
               case ButtonClicked(`eightEight`) =>
-                visualization.canvas.updateGraphDim(9,9)
+                visualization.canvas.updateGraphDim(9, 9)
               case ButtonClicked(`twoFour`) =>
-                visualization.canvas.updateGraphDim(3,5)
+                visualization.canvas.updateGraphDim(3, 5)
             }
           }
 
           contents += new BoxPanel(Orientation.Vertical) {
-            border = CompoundBorder(TitledBorder(EtchedBorder, "Algorithm"), EmptyBorder(5,5,5,10))
+            border = CompoundBorder(TitledBorder(EtchedBorder, "Algorithm"), EmptyBorder(5, 5, 5, 10))
             val one = new RadioButton("one")
             val two = new RadioButton("two")
             val mutex = new ButtonGroup(one, two)
@@ -59,8 +60,10 @@ object FinalProjUI  extends SimpleSwingApplication {
             reactions += {
               case ButtonClicked(`one`) =>
                 visualization.canvas.collectPathEdges(1)
+                visualization.slider.max = visualization.canvas.pathEdges.length - 1
               case ButtonClicked(`two`) =>
                 visualization.canvas.collectPathEdges(2)
+                visualization.slider.max = visualization.canvas.pathEdges.length - 1
             }
           }
         }
@@ -70,29 +73,25 @@ object FinalProjUI  extends SimpleSwingApplication {
           val canvas = new Canvas {
             preferredSize = new Dimension(640, 640)
           }
-
           object slider extends Slider {
             min = 0
-            //value = tabs.selection.index
-            value = 0
-            max = 100
+            max = 0
             majorTickSpacing = 1
+            painTicks = true
           }
-
-          slider.paintTicks = true
           layout(canvas) = Center
           layout(slider) = South
-          /*
-        listenTo(slider)
-        reactions += {
-          case ValueChanged(`slider`) =>
-            if(!slider.adjusting || reactLive) tabs.selection.index = slider.value
-            }
-            */
+
+          listenTo(slider)
+
+          reactions += {
+            case ValueChanged(`slider`) =>
+              if (!slider.adjusting && canvas.pathEdges.length != 0)
+                canvas.changePath(slider.value)
+          }
         }
         pages += new Page("Visualization", visualization)
       }
-
       layout(tabs) = Center
     }
 
@@ -104,16 +103,11 @@ object FinalProjUI  extends SimpleSwingApplication {
       }
     }
   }
-
-
-
-
 }
-
 
 class Canvas extends Panel {
 
-  private var pathEdges = List[List[Edge[Int]]]()
+  var pathEdges = List[String]()
 
   private val jump = 64
 
@@ -144,8 +138,6 @@ class Canvas extends Panel {
 
     g.setStroke(eightStroke)
     g.setColor(zorn.ivoryBlack)
-    println(xAxis)
-    println(yAxis)
     xAxis map (i => yAxis map (j => g.drawRect(i, j, jump, jump)))
     //g.drawPolygon(Array(0, 60, 60, 0), Array(0, 0, 60, 60), 4)
 
@@ -159,7 +151,7 @@ class Canvas extends Panel {
   //g.setColor(zorn.titaniumWhiteAlpha)
   //xAxis map (i => yAxis map (j => g.drawRect(i, j, jump, jump)))
 
-  def updateGraphDim(m: Int, n: Int) {
+  def updateGraphDim(m: Int, n: Int): Unit = {
     gridGraph = new GridGraph(m, n)
 
     xOrigin = (size.width - (jump * (gridGraph.colNum-1))) / 2
@@ -172,15 +164,12 @@ class Canvas extends Panel {
     yAxis = Range(yOrigin , yMax) by jump
   }
 
-  // in general need a method that builds zdd based on chosen grid graph and algorithm algorithm
-  // ---> for now if it is algorithm 2 i will force them to choose top left and bottom right vertices
-  // once the zdd is constructed, find all one paths,
-  // ---> a) store them in a list,
-  //      b) link the slider to index the list
-  //      c) update the slider ticks
-  //      d) repaint when slider is moved
+  def changePath(sliderValue: Int): Unit = {
+    println(sliderValue)
+    println(pathEdges(sliderValue))
+  }
 
-  // each tick will be a List(List[Edge[T]))
+  //      d) repaint when slider is moved
 
   def collectOneEdges[T](n: Node[T]): List[Edge[T]] = n match {
     case Node(_, `oneTerminal`, _) => throw new NoSuchElementException
@@ -194,30 +183,48 @@ class Canvas extends Panel {
       collectOneEdges(lo)
   }
 
-  def collectPathEdges(choice: Int) = {
+  def collectOneEdges[T](n: Node[T], i: Int): String = n match {
+    case Node(_, `oneTerminal`, _) => throw new NoSuchElementException
+
+    case Node(_, `zeroTerminal`, `zeroTerminal`) => "0*"
+
+    case Node(p, `zeroTerminal`, `oneTerminal`) => "1*"
+
+    case Node(p, `zeroTerminal`, hi: Node[T]) => "1" + collectOneEdgeStrings(hi, i+1)
+
+    case Node(p, lo: Node[T], hi: Node[T]) => "0" + collectOneEdgeStrings(lo, i+1) + "1" + collectOneEdgeStrings(hi, i+1)
+
+    case Node(p, lo: Node[T], _) => "0" + collectOneEdgeStrings(lo, i+1)
+  }
+
+  def processPaths(allPaths: String): List[String] = {
+    val onePaths = (allPaths.split("""\*""").toList) filter (path => path.endsWith("1"))
+    val parent = onePaths.head
+    onePaths map (s => parent.dropRight(s.length) + s)
+  }
+
+  def collectPathEdges(choice: Int): Unit = {
     val zdd = if (choice == 1)
         algorithmOne(gridGraph.graph)
       else {
         val h = List(VertexPair(gridGraph.graph.vertices(0), gridGraph.graph.vertices.last))
         algorithmTwo(gridGraph.graph, h)
     }
-    val numOnePaths = countZDDOnePaths(zdd)
-    //slider.max = numOnePaths
-    println(numOnePaths)
-    val unoEdges = collectOneEdges(zdd)
-    println("--------------------------")
-    unoEdges.foreach(println)//(unoEdges)
-    println("--------------------------")
-    // val drawableEdges = processOneEdges(oneEdges)
 
+    var headZero = zdd.loChild match {
+      case lo @ Node(_, _, _) => collectOneEdgeStrings(lo, 0)
+      case _ => "empty"
+    }
+    headZero = "0" + headZero
 
+    var headOne = zdd.hiChild match {
+      case hi @ Node(_, _, _) => collectOneEdgeStrings(hi, 0)
+      case _ => "empty"
+    }
+    headOne = "1" + headOne
+
+    pathEdges = processPaths(headZero) ::: processPaths(headOne)
   }
-  /*
-  //TODO: starting point of next workflow
-  def processOneEdges[T](edges: List[Edge[T]], PairMatchings): Unit = edges match {
-    //case Edge(e0, e1) if e0
-  }
-  */
 
 }
 
@@ -235,11 +242,6 @@ object pqrsGraph {
   val g = new Graph(vertexList, edgeList)
 
   val h = List(VertexPair(p, s))
-  /*
-  val pG = pqrsGraph.g
-  val jZDD = algorithmTwo(pG, pqrsGraph.h)
-  println("pg: "+ countZDDOnePaths(jZDD))
-  */
 }
 
 object zorn  {

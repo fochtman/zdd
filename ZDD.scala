@@ -100,14 +100,8 @@ object ZDD {
   }
 
   def buildZDD[T](zddList: List[Node[T]]): Node[T] = {
-    //val paramsNode = zddList map (node => (node.params, node))
-    val paramsNode = for {
-      n <- zddList.toList
-      p = n.params
-    } yield (p,n)
-
-    val mapZDD = Map.empty ++ paramsNode
-    val zddElem = mapZDD(paramsNode(0)._1)
+    val mapZDD = Map(zddList map(node => (node.params, node)):_*)
+    val rootZDD = mapZDD(zddList(0).params)
 
     def helperFunc(node: Node[T]): Node[T] = node match {
       case Node(p: ELM[T], lc: ELM[T], hc: ELM[T]) =>
@@ -122,7 +116,8 @@ object ZDD {
       case Node(p: ELM[T], lc, hc) =>
         Node(p, lc, hc)
     }
-    helperFunc(zddElem)
+    //helperFunc(zddRoot)
+    helperFunc(rootZDD)
   }
 
   def algorithmOne[T](g: Graph[T]): Node[T] = {
@@ -146,9 +141,6 @@ object ZDD {
         addNextFrontier(i+1, frontier, List(zeroChild, oneChild))
         Node(n, zeroChild, oneChild)
       }
-    println("---------------------------------")
-    zddList.foreach(println)
-    println("---------------------------------")
     buildZDD(zddList)
   }
 
@@ -231,7 +223,6 @@ object ZDD {
         addNextFrontier(i+1, N, List(zeroChild, oneChild))
         Node(n, zeroChild, oneChild)
       }
-    zddList.foreach(println)
     buildZDD(zddList.toList)
   }
 }
