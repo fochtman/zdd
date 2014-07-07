@@ -58,22 +58,24 @@ object ZDD {
     ELM(g.edges(i+1), mates)
   }
 
-  def rejectEdge[T](n: ELM[T], thisEdge: Edge[T]): Boolean = {
-    if ((n.mates(thisEdge.u).order == -1) || (n.mates(thisEdge.u) == thisEdge.v)) true
-    else if ((n.mates(thisEdge.v).order == -1) || (n.mates(thisEdge.v) == thisEdge.u)) true
+  def rejectEdge[T](n: ELM[T], edge: Edge[T]): Boolean = {
+    //val vSet = Set(-1, edge.v)
+    //if (vSet.contains(n.mates(edge.u).order) || vSet.contains(n.mates(edge.u))) true
+    if ((n.mates(edge.u).order == -1) || (n.mates(edge.u) == edge.v)) true
+    else if ((n.mates(edge.v).order == -1) || (n.mates(edge.v) == edge.u)) true
     else false
   }
 
   def getOneChild[T](i: Int, g: Graph[T], n: ELM[T], domain: Map[Int, List[Vertex[T]]]): ELM[T] = {
-    val thisEdge = g.edges(i)
-    val edgeSet = Set(thisEdge.u, thisEdge.v)
+    val edge = g.edges(i)
+    val edgeSet = Set(edge.u, edge.v)
     val mateUpdate =
       for ((w, notUsed) <- n.mates; if domain(i+1).contains(w)) yield {
         if (edgeSet.contains(w) && n.mates(w) != w) w match {
           case Vertex(id, order: Int) => Vertex(id, -1)
         }
-        else if (n.mates(w) == thisEdge.u) n.mates(thisEdge.v)
-        else if (n.mates(w) == thisEdge.v) n.mates(thisEdge.u)
+        else if (n.mates(w) == edge.u) n.mates(edge.v)
+        else if (n.mates(w) == edge.v) n.mates(edge.u)
         else n.mates(w)
       }
     val mates = ListMap(domain(i+1) zip mateUpdate:_*)
@@ -82,13 +84,17 @@ object ZDD {
 
   def addNextFrontier[T](i: Int, N: HashMap[Int, Set[ELM[T]]], children: List[ZDD]): Unit = children match {
     case Nil => ()
+
     case (head: ELM[T]) :: tail =>
       N(i) = N(i) + head
       addNextFrontier(i, N, tail)
+
     case `zeroTerminal` :: tail =>
       addNextFrontier(i, N, tail)
+
     case `oneTerminal` :: tail =>
       addNextFrontier(i, N, tail)
+
     case _ => ()
   }
 
@@ -155,41 +161,73 @@ object ZDD {
     buildZDD(zddList)
   }
 
+    /*
+    if for some v that exists in n.edgeLabel diff domain(i+1) one of the following holds, the 0-child is incompatible:
+      if (v exists in hSet && mate(v) == v)
+        then (m,i,0) is incompatible
+      else if (v !exists in hSet && mate(v) !exist in {0, v})
+        then (m,i,0) is incompatible
+   */
   def zeroChildIsIncompatible[T](i: Int, n: ELM[T], h: List[VertexPair[T]], hSet: Set[Vertex[T]], domain: Map[Int, List[Vertex[T]]]): Boolean = {
     val edge = n.edgeLabel
     val mateTable = n.mates
 
     def matchV(vertexList: List[Vertex[T]]): Boolean = vertexList match {
       case Nil => false
-      case (v: Vertex[T]) :: rest =>
-        if (hSet.contains(v) && mateTable(v) == v) true
-        else if (!hSet.contains(v) && mateTable(v).order != -1 && mateTable(v) != v) true
-        else false
+
+      case (v: Vertex[T]) :: Nil =>
+        if (hSet.contains(v) && mateTable(v) == v)
+          true
+        else if (!hSet.contains(v) && (mateTable(v).order != -1 && mateTable(v) != v))
+          true
+        else
+          false
+
+      case (u: Vertex[T]) :: v =>
+        if (hSet.contains(u) && mateTable(u) == u)
+          true
+        else if (!hSet.contains(u) && (mateTable(u).order != -1 && mateTable(u) != u))
+          true
+        else
+          matchV(v)
     }
 
-    if (i + 1 < domain.size)
-      matchV(List(edge.u, edge.v) diff domain(i+1))
-    else
-      matchV(List(edge.v))
+    def matchV2(vertexList: List[Vertex[T]]): Boolean = vertexList match {
+      case (u: Vertex[T]) :: tail =>
+        if (mateTable(u) == u) true
+        else matchV2(tail)
+      case Nil =>
+        false
+    }
+
+    val nextDom =
+      if (i + 1 < domain.size) domain(i + 1)
+      else Nil
+
+    val res0 = matchV(List(edge.u, edge.v) diff nextDom)
+    val res1 = matchV2(domain(i) diff nextDom)
+
+    res1 || res0
   }
 
   def oneChildIsIncompatible[T](i: Int, g: Graph[T], n: ELM[T], h: List[VertexPair[T]], hSet: Set[Vertex[T]], domain: Map[Int, List[Vertex[T]]]): Boolean = {
-    if (i + 1 < g.edges.length) {
       val edge = n.edgeLabel
       val mateTable = n.mates
-      // can move this hFlat out of loop, only needs to be calculated once
-      //val hFlat = h.flatMap(p => List(p.v0, p.v1)).toSet
-      val hUnionVDiff = hSet union (g.vertices.toSet diff domain(i + 1).toSet)
+      val nextDom =
+        if (i +1 < domain.size) domain(i + 1)
+        else Nil
+      val hUnionVDiff = hSet union (g.vertices.toSet diff nextDom.toSet)
       val mateU = mateTable(edge.u)
       val mateV = mateTable(edge.v)
 
-      if (hSet.contains(edge.v) && mateTable(edge.v) != edge.v) true
-      else if (hSet.contains(edge.u) && mateTable(edge.u) != edge.u) true
-      else if (hUnionVDiff.contains(mateU) && hUnionVDiff.contains(mateV) && !h.contains(VertexPair(mateU, mateV))) true
-      else false
-    } else {
-      false
-    }
+      if (hSet.contains(edge.v) && mateTable(edge.v) != edge.v)
+        true
+      else if (hSet.contains(edge.u) && mateTable(edge.u) != edge.u)
+        true
+      else if (hUnionVDiff.contains(mateU) && hUnionVDiff.contains(mateV) && !h.contains(VertexPair(mateU, mateV)))
+        true
+      else
+        false
   }
 
   def algorithmTwo[T](g: Graph[T], h: List[VertexPair[T]]): Node[T] = {
@@ -203,6 +241,10 @@ object ZDD {
         i <- edgeIndices
         n <- frontier(i)
       } yield {
+        /*
+        For both 0-child and 1-child when i == |E| + 1, they are assumed to lead to
+        one terminal
+         */
 
         val zeroChild =
           if (zeroChildIsIncompatible(i, n, h, hSet, domain)) zeroTerminal
@@ -214,6 +256,26 @@ object ZDD {
           else if (oneChildIsIncompatible(i, g, n, h, hSet, domain)) zeroTerminal
           else if (i+1 < edgeIndices.length) getOneChild(i, g, n, domain)
           else oneTerminal
+
+        /*
+        val oneChildA =
+          if (i+1 < domain.size) {
+            val uv =
+              for {
+                u <- domain(i+1)
+                v <- g.vertices
+                if u != v
+                if n.mates(u) == v
+                if h.contains(VertexPair(u, v)) || h.contains(VertexPair(v, u))
+              } yield (u,v)
+            if (uv.isEmpty)
+              oneChildTmp
+            else
+              oneTerminal
+          } else {
+            zeroTerminal
+          }
+        println(oneChild, oneChildA)*/
 
         val oneChild = oneChildTmp match {
           case `zeroTerminal` => oneChildTmp

@@ -86,6 +86,7 @@ object FinalProjUI  extends SimpleSwingApplication {
             max = 0
             majorTickSpacing = 1
             paintTicks = true
+            paintLabels = true
           }
           layout(canvas) = Center
           layout(slider) = South
@@ -175,12 +176,14 @@ class Canvas extends Panel {
   def changePath(sliderValue: Int): Unit = {
     val bStr = pathEdges(sliderValue).toList
 
-    println("bStr: "+bStr)
-
     val pathMap = bStr.zipWithIndex filter (x =>
       x._1 == '1') map (index =>
         gridGraph.graph.edges(index._2))
-    println("pathMap: "+pathMap)
+
+    println("bStr: "+bStr)
+    //println("pathMap: "+pathMap)
+    //println()
+
     currentPath = pathMap map (edge =>
       (gridGraph.vertexToCoord(edge.u), gridGraph.vertexToCoord(edge.v)))
 
@@ -204,8 +207,13 @@ class Canvas extends Panel {
       s" $i-0" + collectOneEdges(lo, i+1) +
         s"$i-1"  + collectOneEdges(hi, i+1)
 
-    case Node(p, lo: Node[T], hi) =>
-      "0" + collectOneEdges(lo, i+1)
+    case Node(p, lo: Node[T], `zeroTerminal`) =>
+      "0" + collectOneEdges(lo, i+1) + "6*"
+
+    case Node(p, lo: Node[T], `oneTerminal`) =>
+      "0" + collectOneEdges(lo, i+1) + "1*"
+    //case Node(p, lo: Node[T], hi) =>
+    //  "0" + collectOneEdges(lo, i+1)
   }
 
   def processPaths(allPaths: String): List[String] = {
@@ -217,11 +225,13 @@ class Canvas extends Panel {
 
     def fullPathFromRootBranch(xs: List[String]): String = xs match {
       case head :: tail =>
-        val tmp = head match {
-          case match1(x, y) => y
+        val binStr = head match {
+          case match1(index, binaryStr) if !binaryStr.contains("6") =>
+            binaryStr
+          case _ => "dead"
         }
-        tmp + fullPathFromRootBranch(tail)
-      case _ => ""
+        binStr + fullPathFromRootBranch(tail)
+      case _ => "dead"
     }
 
     def fullPathsFromPartials(xs: List[String], s: String): String = xs match {
@@ -229,8 +239,8 @@ class Canvas extends Panel {
         head match {
           case match1(index, binaryStr) if !binaryStr.contains("6") =>
             val splitStr = s.splitAt(index.toInt)._1 + binaryStr
-            val fillStr = splitStr + "0" * (s.length - splitStr.length)
-            fullPathsFromPartials(tail, fillStr)
+            //val fillStr = splitStr //+ "0" * (s.length - splitStr.length)
+            fullPathsFromPartials(tail, splitStr)
           case _ =>
             fullPathsFromPartials(Nil, "dead")
         }
@@ -239,44 +249,49 @@ class Canvas extends Panel {
     }
 
     val firstFullPath = fullPathFromRootBranch(pHead)
-    val tmpRest = pTail map (partialPath =>
+    val restOfPaths = pTail map (partialPath =>
       fullPathsFromPartials(partialPath, firstFullPath))
-    val restOfPaths = tmpRest filter (pathStr => pathStr != "dead")
+    //println("tmpRest: "+ tmpRest)
+    //val restOfPaths = tmpRest filter (pathStr => pathStr != "dead")
     /*
     ideally I would just return the list (firstFull :: rest) without filtering out degenerate cases.
     that is my algorithm should have already done this
      */
-    (firstFullPath :: restOfPaths)
-    //(firstFullPath :: restOfPaths) filter (path =>
-    //  path.count(_ == '1') >= (gridGraph.rowNum-1) + (gridGraph.colNum-1))
+    (firstFullPath :: restOfPaths) filter (pathStr => pathStr != "dead")
   }
 
-  def collectPathEdges(choice: Int): Unit = {
-    val zdd = if (choice == 1)
-        algorithmOne(gridGraph.graph)
-      else {
-        val ggV = gridGraph.graph.vertices
-        val h = if (gridGraph.rowNum == 7) {
-          List(VertexPair(ggV(28), ggV(30)), VertexPair(ggV(31), ggV.last), VertexPair(ggV(15), ggV(33)))//VertexPair(ggV(0), ggV.last))
-        } else {
-          List(VertexPair(ggV(0), ggV.last))
-        }
-        algorithmTwo(gridGraph.graph, h)
-    }
+  def collectPathEdges(choice: Int): Unit = choice match {
+    case 1 =>
+      val zdd = algorithmOne(gridGraph.graph)
+      println("Number of paths: "+ countZDDOnePaths(zdd))
 
-    val headZero = zdd.loChild match {
-      case lo @ Node(_, _, _) =>
-        collectOneEdges(lo, 1)
-      case _ => throw new NoSuchElementException
-    }
+    case 2 =>
+      val ggV = gridGraph.graph.vertices
 
-    val headOne = zdd.hiChild match {
-      case hi @ Node(_, _, _) =>
-        collectOneEdges(hi, 1)
-      case _ => throw new NoSuchElementException
-    }
+      val h = if (gridGraph.rowNum == 7) {
+        List(VertexPair(ggV(28), ggV(30)), VertexPair(ggV(31), ggV.last), VertexPair(ggV(15), ggV(33))) //VertexPair(ggV(0), ggV.last))
+      } else if (gridGraph.rowNum == 3)  {
+        List(VertexPair(ggV(4), ggV(7)), VertexPair(ggV(6), ggV.last))
+      } else {
+        List(VertexPair(ggV(0), ggV.last))
+      }
 
-    pathEdges = processPaths("0-0" + headZero) ::: processPaths("0-1" + headOne)
+      val zdd = algorithmTwo(gridGraph.graph, h)
+
+      val headZero = zdd.loChild match {
+        case lo @ Node(_, _, _) =>
+          collectOneEdges(lo, 1)
+        case _ => throw new NoSuchElementException
+      }
+
+      val headOne = zdd.hiChild match {
+        case hi @ Node(_, _, _) =>
+          collectOneEdges(hi, 1)
+        case _ => throw new NoSuchElementException
+      }
+      println("headZero: "+headZero.split("""\*""").toList)
+      pathEdges = processPaths("0-0" + headZero) ::: processPaths("0-1" + headOne)
+
   }
 }
 
