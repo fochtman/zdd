@@ -181,8 +181,8 @@ class Canvas extends Panel {
         gridGraph.graph.edges(index._2))
 
     println("bStr: "+bStr)
-    //println("pathMap: "+pathMap)
-    //println()
+    println("pathMap: "+pathMap)
+    println()
 
     currentPath = pathMap map (edge =>
       (gridGraph.vertexToCoord(edge.u), gridGraph.vertexToCoord(edge.v)))
@@ -244,14 +244,12 @@ class Canvas extends Panel {
           case _ =>
             fullPathsFromPartials(Nil, "dead")
         }
-
       case Nil => s
     }
 
     val firstFullPath = fullPathFromRootBranch(pHead)
     val restOfPaths = pTail map (partialPath =>
       fullPathsFromPartials(partialPath, firstFullPath))
-    //println("tmpRest: "+ tmpRest)
     //val restOfPaths = tmpRest filter (pathStr => pathStr != "dead")
     /*
     ideally I would just return the list (firstFull :: rest) without filtering out degenerate cases.
@@ -270,8 +268,8 @@ class Canvas extends Panel {
 
       val h = if (gridGraph.rowNum == 7) {
         List(VertexPair(ggV(28), ggV(30)), VertexPair(ggV(31), ggV.last), VertexPair(ggV(15), ggV(33))) //VertexPair(ggV(0), ggV.last))
-      } else if (gridGraph.rowNum == 3)  {
-        List(VertexPair(ggV(4), ggV(7)), VertexPair(ggV(6), ggV.last))
+      //} else if (gridGraph.rowNum == 3)  {
+      //  List(VertexPair(ggV(4), ggV(7)), VertexPair(ggV(6), ggV.last))
       } else {
         List(VertexPair(ggV(0), ggV.last))
       }
@@ -289,26 +287,9 @@ class Canvas extends Panel {
           collectOneEdges(hi, 1)
         case _ => throw new NoSuchElementException
       }
-      println("headZero: "+headZero.split("""\*""").toList)
+      //println("headZero: "+headZero.split("""\*""").toList)
       pathEdges = processPaths("0-0" + headZero) ::: processPaths("0-1" + headOne)
-
   }
-}
-
-object pqrsGraph {
-  val p = Vertex('p', 0)
-  val q = Vertex('q', 1)
-  val r = Vertex('r', 2)
-  val s = Vertex('s', 3)
-  val vertexList = List(p, q, r, s)
-  val pq = Edge(p, q)
-  val pr = Edge(p, r)
-  val qr = Edge(q, r)
-  val qs = Edge(q, s)
-  val edgeList = List(pq, pr, qr, qs)
-  val g = new Graph(vertexList, edgeList)
-
-  val h = List(VertexPair(p, s))
 }
 
 object zorn  {

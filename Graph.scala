@@ -1,9 +1,9 @@
 object Graph {
 
   case class Vertex[T](id: T, order: Int) {
-    //override def toString = "["+id+","+order+"]"
+    override def toString = "["+id+","+order+"]"
     //override def toString = "v("+id+")"
-    override def toString = ""+id+""
+    //override def toString = ""+id+""
   }
 
   case class Edge[T](u: Vertex[T], v: Vertex[T])

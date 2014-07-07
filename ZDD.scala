@@ -54,7 +54,9 @@ object ZDD {
 
   def getZeroChild[T](i: Int, g: Graph[T], n: ELM[T], domain: Map[Int, List[Vertex[T]]]): ELM[T] = {
     val removal = (domain(i).toSet &~ domain(i+1).toSet).toList
-    val mates = if (!removal.isEmpty) n.mates - removal(0) else n.mates
+    val mates =
+      if (removal.isEmpty) n.mates
+      else n.mates - removal(0)
     ELM(g.edges(i+1), mates)
   }
 
@@ -69,14 +71,20 @@ object ZDD {
   def getOneChild[T](i: Int, g: Graph[T], n: ELM[T], domain: Map[Int, List[Vertex[T]]]): ELM[T] = {
     val edge = g.edges(i)
     val edgeSet = Set(edge.u, edge.v)
+
     val mateUpdate =
-      for ((w, notUsed) <- n.mates; if domain(i+1).contains(w)) yield {
-        if (edgeSet.contains(w) && n.mates(w) != w) w match {
-          case Vertex(id, order: Int) => Vertex(id, -1)
-        }
-        else if (n.mates(w) == edge.u) n.mates(edge.v)
-        else if (n.mates(w) == edge.v) n.mates(edge.u)
-        else n.mates(w)
+      for {
+        (w, notUsed) <- n.mates
+        if domain(i+1).contains(w)
+      } yield {
+        if (edgeSet.contains(w) && n.mates(w) != w)
+          Vertex(w.id, -1)
+        else if (n.mates(w) == edge.u)
+          n.mates(edge.v)
+        else if (n.mates(w) == edge.v)
+          n.mates(edge.u)
+        else
+          n.mates(w)
       }
     val mates = ListMap(domain(i+1) zip mateUpdate:_*)
     ELM(g.edges(i+1), mates)
@@ -148,12 +156,19 @@ object ZDD {
         n <- frontier(i)
       } yield {
 
-        val zeroChild = if (i+1 < edgeIndices.length) getZeroChild(i, g, n, domain)
-          else oneTerminal
+        val zeroChild =
+          if (i+1 < edgeIndices.length)
+            getZeroChild(i, g, n, domain)
+          else
+            oneTerminal
 
-        val oneChild = if (rejectEdge(n, g.edges(i))) zeroTerminal
-          else if (i+1 < edgeIndices.length) getOneChild(i, g, n, domain)
-          else oneTerminal
+        val oneChild =
+          if (rejectEdge(n, g.edges(i)))
+            zeroTerminal
+          else if (i+1 < edgeIndices.length)
+            getOneChild(i, g, n, domain)
+          else
+            oneTerminal
 
         addNextFrontier(i+1, frontier, List(zeroChild, oneChild))
         Node(n, zeroChild, oneChild)
@@ -205,9 +220,10 @@ object ZDD {
       else Nil
 
     val res0 = matchV(List(edge.u, edge.v) diff nextDom)
-    val res1 = matchV2(domain(i) diff nextDom)
-
-    res1 || res0
+    // uncomment for increased restrictions
+    //val res1 = matchV2(domain(i) diff nextDom)
+    //res0 || res1
+    res0
   }
 
   def oneChildIsIncompatible[T](i: Int, g: Graph[T], n: ELM[T], h: List[VertexPair[T]], hSet: Set[Vertex[T]], domain: Map[Int, List[Vertex[T]]]): Boolean = {
@@ -295,7 +311,8 @@ object ZDD {
         addNextFrontier(i+1, frontier, List(zeroChild, oneChild))
         Node(n, zeroChild, oneChild)
       }
-    prettyPrintZDD(zddList)
+    zddList.foreach(println)
+    //prettyPrintZDD(zddList)
     buildZDD(zddList)
   }
 }
