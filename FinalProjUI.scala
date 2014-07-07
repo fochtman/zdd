@@ -1,4 +1,4 @@
-import java.awt.{ Color, Graphics2D, RenderingHints, BasicStroke }
+import java.awt.{ RenderingHints, BasicStroke }
 import swing._
 import swing.event._
 import Swing._
@@ -26,12 +26,13 @@ object FinalProjUI  extends SimpleSwingApplication {
             val twoTwo = new RadioButton("2 x 2")
             val threeThree = new RadioButton("3 x 3")
             val fourFour = new RadioButton("4 x 4")
+            val sixSix = new RadioButton("6 x 6")
             val eightEight = new RadioButton("8 x 8")
             val twoFour = new RadioButton("2 x 4")
 
-            val mutex = new ButtonGroup(oneOne, oneTwo, twoTwo, threeThree, fourFour, eightEight, twoFour)
+            val mutex = new ButtonGroup(oneOne, oneTwo, twoTwo, threeThree, fourFour, sixSix, eightEight, twoFour)
             contents ++= mutex.buttons
-            listenTo(oneOne, oneTwo, twoTwo, fourFour, threeThree, eightEight, twoFour)
+            listenTo(oneOne, oneTwo, twoTwo, fourFour, threeThree, sixSix, eightEight, twoFour)
 
             reactions += {
               case ButtonClicked(`oneOne`) =>
@@ -44,6 +45,8 @@ object FinalProjUI  extends SimpleSwingApplication {
                 visualization.canvas.updateGraphDim(4, 4)
               case ButtonClicked(`fourFour`) =>
                 visualization.canvas.updateGraphDim(5, 5)
+              case ButtonClicked(`sixSix`) =>
+                visualization.canvas.updateGraphDim(7, 7)
               case ButtonClicked(`eightEight`) =>
                 visualization.canvas.updateGraphDim(9, 9)
               case ButtonClicked(`twoFour`) =>
@@ -172,77 +175,109 @@ class Canvas extends Panel {
   def changePath(sliderValue: Int): Unit = {
     val bStr = pathEdges(sliderValue).toList
 
+    println("bStr: "+bStr)
+
     val pathMap = bStr.zipWithIndex filter (x =>
       x._1 == '1') map (index =>
         gridGraph.graph.edges(index._2))
-
-    currentPath = pathMap.map (edge =>
+    println("pathMap: "+pathMap)
+    currentPath = pathMap map (edge =>
       (gridGraph.vertexToCoord(edge.u), gridGraph.vertexToCoord(edge.v)))
 
     repaint()
   }
 
-  //      d) repaint when slider is moved
-
   def collectOneEdges[T](n: Node[T], i: Int): String = n match {
-    case Node(_, `oneTerminal`, _) => throw new NoSuchElementException
+    case Node(_, `oneTerminal`, _) =>
+      throw new NoSuchElementException
 
-    case Node(_, `zeroTerminal`, `zeroTerminal`) => "0*"
+    case Node(_, `zeroTerminal`, `zeroTerminal`) =>
+      "6*"
 
-    case Node(p, `zeroTerminal`, `oneTerminal`) => "1*"
+    case Node(p, `zeroTerminal`, `oneTerminal`) =>
+      "1*"
 
-    case Node(p, `zeroTerminal`, hi: Node[T]) => "1" + collectOneEdges(hi, i+1)
+    case Node(p, `zeroTerminal`, hi: Node[T]) =>
+      "1" + collectOneEdges(hi, i+1)
 
-    case Node(p, lo: Node[T], hi: Node[T]) => "0" + collectOneEdges(lo, i+1) + "1" + collectOneEdges(hi, i+1)
+    case Node(p, lo: Node[T], hi: Node[T]) =>
+      s" $i-0" + collectOneEdges(lo, i+1) +
+        s"$i-1"  + collectOneEdges(hi, i+1)
 
-    case Node(p, lo: Node[T], _) => "0" + collectOneEdges(lo, i+1)
+    case Node(p, lo: Node[T], hi) =>
+      "0" + collectOneEdges(lo, i+1)
   }
 
   def processPaths(allPaths: String): List[String] = {
-    println(allPaths)
-    val onePaths = (allPaths.split("""\*""").toList) //filter (path => path.endsWith("1"))
-    onePaths match {
-      case head :: tail => onePaths map (s => head.dropRight (s.length) + s)
-      case Nil => Nil
+    val p = allPaths.split("""\*""").toList
+    val pHead = p.head.split(" ").toList
+    val pTail = p.tail map (_.split(" ").toList)
+
+    val match1 = """(\d+)-(\d+)""".r
+
+    def fullPathFromRootBranch(xs: List[String]): String = xs match {
+      case head :: tail =>
+        val tmp = head match {
+          case match1(x, y) => y
+        }
+        tmp + fullPathFromRootBranch(tail)
+      case _ => ""
     }
+
+    def fullPathsFromPartials(xs: List[String], s: String): String = xs match {
+      case head :: tail =>
+        head match {
+          case match1(index, binaryStr) if !binaryStr.contains("6") =>
+            val splitStr = s.splitAt(index.toInt)._1 + binaryStr
+            val fillStr = splitStr + "0" * (s.length - splitStr.length)
+            fullPathsFromPartials(tail, fillStr)
+          case _ =>
+            fullPathsFromPartials(Nil, "dead")
+        }
+
+      case Nil => s
+    }
+
+    val firstFullPath = fullPathFromRootBranch(pHead)
+    val tmpRest = pTail map (partialPath =>
+      fullPathsFromPartials(partialPath, firstFullPath))
+    val restOfPaths = tmpRest filter (pathStr => pathStr != "dead")
+    /*
+    ideally I would just return the list (firstFull :: rest) without filtering out degenerate cases.
+    that is my algorithm should have already done this
+     */
+    (firstFullPath :: restOfPaths)
+    //(firstFullPath :: restOfPaths) filter (path =>
+    //  path.count(_ == '1') >= (gridGraph.rowNum-1) + (gridGraph.colNum-1))
   }
 
   def collectPathEdges(choice: Int): Unit = {
     val zdd = if (choice == 1)
         algorithmOne(gridGraph.graph)
       else {
-        //val v = gridGraph.graph.vertices
-        val h =
-          List(VertexPair(gridGraph.graph.vertices(0), gridGraph.graph.vertices.last))
+        val ggV = gridGraph.graph.vertices
+        val h = if (gridGraph.rowNum == 7) {
+          List(VertexPair(ggV(28), ggV(30)), VertexPair(ggV(31), ggV.last), VertexPair(ggV(15), ggV(33)))//VertexPair(ggV(0), ggV.last))
+        } else {
+          List(VertexPair(ggV(0), ggV.last))
+        }
         algorithmTwo(gridGraph.graph, h)
     }
 
-    var headZero = zdd.loChild match {
-      case lo @ Node(_, _, _) => collectOneEdges(lo, 0)
-      case _ => "empty"
+    val headZero = zdd.loChild match {
+      case lo @ Node(_, _, _) =>
+        collectOneEdges(lo, 1)
+      case _ => throw new NoSuchElementException
     }
-    headZero = "0" + headZero
 
-    var headOne = zdd.hiChild match {
-      case hi @ Node(_, _, _) => collectOneEdges(hi, 0)
-      case _ => "empty"
+    val headOne = zdd.hiChild match {
+      case hi @ Node(_, _, _) =>
+        collectOneEdges(hi, 1)
+      case _ => throw new NoSuchElementException
     }
-    headOne = "1" + headOne
 
-    val zeroPs = processPaths(headZero)
-    println("~~0 ")
-    zeroPs.foreach(println)
-    println(" 0~~")
-    println()
-    val onePs = processPaths(headOne)
-    println("~~1 ")
-    onePs.foreach(println)
-    println("  1~~")
-
-    pathEdges = zeroPs ::: onePs
-    println(pathEdges.length)
+    pathEdges = processPaths("0-0" + headZero) ::: processPaths("0-1" + headOne)
   }
-
 }
 
 object pqrsGraph {

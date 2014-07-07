@@ -30,7 +30,7 @@ object Graph {
       Map(graph.vertices zip
         ((1 to m).toList flatMap(i =>
           (1 to n).toList map(j =>
-            (j, i)))):_*)
+            (j, i)))):_*) /* Note: (j, i) */
 
     def buildGridGraph(m: Int, n: Int): Graph[Int] = {
       val rows = (1 to m).toList
@@ -46,7 +46,6 @@ object Graph {
             (i, j)))
 
       val coordToVertex = Map(nodeCoords zip vertexList: _*)
-      println(coordToVertex)
 
       val horizontalEdges =
         rows.flatMap(i =>
