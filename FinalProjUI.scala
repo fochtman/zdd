@@ -124,7 +124,7 @@ object FinalProjUI  extends SimpleSwingApplication {
 class Canvas extends Panel {
   //var pathEdges = List[String]()
   var pathEdges = ListBuffer[ListBuffer[Byte]]()
-  var currentPath = List[((Int, Int), (Int, Int))]()
+  var currentPathCoords = List[((Int, Int), (Int, Int))]()
 
   private val jump = 64
 
@@ -141,6 +141,13 @@ class Canvas extends Panel {
 
   private var yMax = yOrigin + (gridGraph.rowNum-1) * jump
   private var yAxis = (Range(yOrigin , yMax) by jump).toList
+  /*
+  The xAxis and yAxis contain points which correspond the to top
+  left corner of each square in the grid. So when drawing the paths
+  over the grid, we need one extra point at the end of each axis list.
+   */
+  private var xPathAxis = xAxis ::: (xAxis.last + 64 :: Nil)
+  private var yPathAxis = yAxis ::: (yAxis.last + 64 :: Nil)
 
   val bzl = zorn.blended.length
   val twoStroke = new BasicStroke(2)
@@ -155,15 +162,15 @@ class Canvas extends Panel {
 
     g.setStroke(eightStroke)
     g.setColor(zorn.ivoryBlack)
-    xAxis map (i => yAxis map (j => g.drawRect(i, j, jump, jump)))
+    xAxis map (x =>
+      yAxis map (y =>
+        g.drawRect(x, y, jump, jump)))
 
-    if (!currentPath.isEmpty) {
-      val x = xAxis ::: (xAxis.last + 64 :: Nil)
-      val y = yAxis ::: (yAxis.last + 64 :: Nil)
+    if (!currentPathCoords.isEmpty) {
       g.setStroke(new BasicStroke(16, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND))
       g.setColor(zorn.yellowOchreAlpha)
-      for (cp <- currentPath) {
-        g.drawLine(x(cp._1._1-1), y(cp._1._2-1), x(cp._2._1-1), y(cp._2._2-1))
+      for ((u, v) <- currentPathCoords) {
+        g.drawLine(xPathAxis(u._1), yPathAxis(u._2), xPathAxis(v._1), yPathAxis(v._2))
       }
     }
   }
@@ -179,21 +186,19 @@ class Canvas extends Panel {
 
     yMax = yOrigin + (gridGraph.rowNum-1) * jump
     yAxis = (Range(yOrigin , yMax) by jump).toList
+
+    xPathAxis = xAxis ::: (xAxis.last + jump :: Nil)
+    yPathAxis = yAxis ::: (yAxis.last + jump :: Nil)
   }
 
   def changePath(sliderValue: Int): Unit = {
     val bStr = pathEdges(sliderValue)
-    //val bStr = pathEdges(sliderValue).toList
-    /*
-    val pathMap = bStr.zipWithIndex filter (x =>
-      x._1 == '1') map (index =>
-        gridGraph.graph.edges(index._2))
-    */
+
     val pathMap = bStr.zipWithIndex filter (x =>
       x._1 == 1) map (index =>
       gridGraph.graph.edges(index._2))
 
-    currentPath = pathMap.toList map (edge =>
+    currentPathCoords = pathMap.toList map (edge =>
       (gridGraph.vertexToCoord(edge.u), gridGraph.vertexToCoord(edge.v)))
 
     repaint()
@@ -206,16 +211,7 @@ class Canvas extends Panel {
 
     case 2 =>
       val ggV = gridGraph.graph.vertices
-
-      val h =
-      //if (gridGraph.rowNum == 7) {
-      //  List(VertexPair(ggV(28), ggV(30)), VertexPair(ggV(31), ggV.last), VertexPair(ggV(15), ggV(33))) //VertexPair(ggV(0), ggV.last))
-      //} else if (gridGraph.rowNum == 3)  {
-      //  List(VertexPair(ggV(4), ggV(7)), VertexPair(ggV(6), ggV.last))
-      //} else {
-        List(VertexPair(ggV(0), ggV.last))
-      //}
-
+      val h = List(VertexPair(ggV(0), ggV.last))
       pathEdges = enumZDDValidPaths(algorithmTwo(gridGraph.graph, h))
       println("Number of valid paths: "+ pathEdges.length)
   }
