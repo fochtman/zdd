@@ -47,7 +47,6 @@ object ZDD {
     case head :: tail =>
       val sortedDom = edges.flatMap(e =>
         List(e.u, e.v)).distinct.sortWith((v0,v1) => v0 < v1)
-          //v0.order < v1.order)
       (i, sortedDom) :: Nil ::: dom(i+1, tail)
   }
 
@@ -62,10 +61,8 @@ object ZDD {
   }
 
   def rejectEdge(n: ELM, edge: Edge): Boolean = {
-    //if (n.mates(edge.u).order == 0 || n.mates(edge.u) == edge.v)
     if (n.mates(edge.u) == 0 || n.mates(edge.u) == edge.v)
       true
-    //else if (n.mates(edge.v).order == 0 || n.mates(edge.v) == edge.u)
     else if (n.mates(edge.v) == 0 || n.mates(edge.v) == edge.u)
       true
     else
@@ -180,17 +177,16 @@ object ZDD {
     val rootZDD = mapZDD(zddList(0).params)
 
     def helperFunc(node: Node): Node = node match {
-      case Node(p: ELM, lc: ELM, hc: ELM) =>
-        Node(p, helperFunc(mapZDD(lc)), helperFunc(mapZDD(hc)))
+      case Node(p: ELM, lo: ELM, hi: ELM) =>
+        Node(p, helperFunc(mapZDD(lo)), helperFunc(mapZDD(hi)))
 
-      case Node(p: ELM, lc, hc: ELM) =>
-        Node(p, lc, helperFunc(mapZDD(hc)))
+      case Node(p: ELM, terminal, hi: ELM) =>
+        Node(p, terminal, helperFunc(mapZDD(hi)))
 
-      case Node(p: ELM, lc: ELM, hc) =>
-        Node(p, helperFunc(mapZDD(lc)), hc)
+      case Node(p: ELM, lo: ELM, terminal) =>
+        Node(p, helperFunc(mapZDD(lo)), terminal)
 
-      case Node(p: ELM, lc, hc) =>
-        Node(p, lc, hc)
+      case n @ Node(p: ELM, _, _) => n
     }
     helperFunc(rootZDD)
   }
@@ -243,7 +239,6 @@ object ZDD {
       case (v: Vertex) :: Nil =>
         if (hSet.contains(v) && mateTable(v) == v)
           true
-        //else if (!hSet.contains(v) && (mateTable(v).order != 0 && mateTable(v) != v))
         else if (!hSet.contains(v) && (mateTable(v) != 0 && mateTable(v) != v))
           true
         else
@@ -252,7 +247,6 @@ object ZDD {
       case (u: Vertex) :: v =>
         if (hSet.contains(u) && mateTable(u) == u)
           true
-        //else if (!hSet.contains(u) && (mateTable(u).order != 0 && mateTable(u) != u))
         else if (!hSet.contains(u) && (mateTable(u) != 0 && mateTable(u) != u))
           true
         else
@@ -260,11 +254,13 @@ object ZDD {
     }
 
     def matchV2(vertexList: List[Vertex]): Boolean = vertexList match {
+      case Nil => false
+
       case (u: Vertex) :: tail =>
-        if (mateTable(u) == u) true
-        else matchV2(tail)
-      case Nil =>
-        false
+        if (mateTable(u) == u)
+          true
+        else
+          matchV2(tail)
     }
 
     val nextDom =
@@ -322,26 +318,33 @@ object ZDD {
          */
 
         val zeroChild =
-          if (zeroChildIsIncompatible(i, n, h, hSet, domain)) zeroTerminal
-          else if (i+1 < edgeIndices.length) getZeroChild(i, g, n, domain)
-          else oneTerminal
+          if (zeroChildIsIncompatible(i, n, h, hSet, domain))
+            zeroTerminal
+          else if (i+1 < edgeIndices.length)
+            getZeroChild(i, g, n, domain)
+          else
+            oneTerminal
 
-        val oneChildPosibility =
-          if (rejectEdge(n, g.edges(i))) zeroTerminal
-          else if (oneChildIsIncompatible(i, g, n, h, hSet, domain)) zeroTerminal
-          else if (i+1 < edgeIndices.length) getOneChild(i, g, n, domain)
-          else oneTerminal
+        val oneChildPossibility =
+          if (rejectEdge(n, g.edges(i)))
+            zeroTerminal
+          else if (oneChildIsIncompatible(i, g, n, h, hSet, domain))
+            zeroTerminal
+          else if (i+1 < edgeIndices.length)
+            getOneChild(i, g, n, domain)
+          else
+            oneTerminal
 
         val oneChild =
           if (i+1 < domain.size && quickSolution(i, n))
             oneTerminal
           else
-            oneChildPosibility
-
+            oneChildPossibility
         addNextFrontier(i+1, frontier, List(zeroChild, oneChild))
+
+        //could just return a 3 tuple, turn it into a node later
         Node(n, zeroChild, oneChild)
       }
-    //println("finished building")
     buildZDD(zddList)
   }
 }
