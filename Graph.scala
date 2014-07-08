@@ -1,21 +1,22 @@
 object Graph {
 
-  case class Vertex[T](id: T, order: Int) {
-    override def toString = "["+id+","+order+"]"
+  //case class Vertex(id: Int) { //}, order: Int) {
+  case class Vertex(order: Int) { //}, order: Int) {
+    //override def toString = "["+id+","+order+"]"
     //override def toString = "v("+id+")"
-    //override def toString = ""+id+""
+    override def toString = ""+order+""
   }
 
-  case class Edge[T](u: Vertex[T], v: Vertex[T])
+  case class Edge(u: Vertex, v: Vertex)
 
-  case class Graph[T](vertices: List[Vertex[T]], edges: List[Edge[T]])
+  case class Graph(vertices: List[Vertex], edges: List[Edge])
 
-  case class VertexPair[T](v0: Vertex[T], v1: Vertex[T])
+  case class VertexPair(v0: Vertex, v1: Vertex)
 
   /* lexicographical comparison
    * edge order: {i, j} < {i', j'} iff (i < i') or (i == i' and j < j')
    */
-  def compareEdgeOrder[T](a: Edge[T], b: Edge[T]) = {
+  def compareEdgeOrder(a: Edge, b: Edge) = {
     if (a.u.order < b.u.order) true
     else if (a.u.order == b.u.order && a.v.order < b.v.order) true
     else if (a.u.order == b.u.order && a.v.order == b.v.order) false
@@ -32,13 +33,13 @@ object Graph {
           (1 to n).toList map(j =>
             (j, i)))):_*) /* Note: (j, i) */
 
-    def buildGridGraph(m: Int, n: Int): Graph[Int] = {
+    def buildGridGraph(m: Int, n: Int): Graph = {
       val rows = (1 to m).toList
       val cols = (1 to n).toList
 
       val vertexList =
         (1 to rowNum * colNum).toList map(i =>
-          Vertex(i, i - 1))
+          Vertex(i))
 
       val nodeCoords =
         rows flatMap(i =>
