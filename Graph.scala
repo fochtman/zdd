@@ -1,11 +1,13 @@
 object Graph {
-
+  /*
   //case class Vertex(id: Int) { //}, order: Int) {
   case class Vertex(order: Int) { //}, order: Int) {
     //override def toString = "["+id+","+order+"]"
     //override def toString = "v("+id+")"
     override def toString = ""+order+""
   }
+  */
+  type Vertex = Int
 
   case class Edge(u: Vertex, v: Vertex)
 
@@ -17,11 +19,19 @@ object Graph {
    * edge order: {i, j} < {i', j'} iff (i < i') or (i == i' and j < j')
    */
   def compareEdgeOrder(a: Edge, b: Edge) = {
+    if (a.u < b.u) true
+    else if (a.u == b.u && a.v < b.v) true
+    else if (a.u == b.u && a.v == b.v) false
+    else false
+  }
+  /*
+  def compareEdgeOrder(a: Edge, b: Edge) = {
     if (a.u.order < b.u.order) true
     else if (a.u.order == b.u.order && a.v.order < b.v.order) true
     else if (a.u.order == b.u.order && a.v.order == b.v.order) false
     else false
   }
+  */
 
   class GridGraph(m: Int, n: Int) {
     val rowNum = m
@@ -37,9 +47,9 @@ object Graph {
       val rows = (1 to m).toList
       val cols = (1 to n).toList
 
-      val vertexList =
-        (1 to rowNum * colNum).toList map(i =>
-          Vertex(i))
+      val vertexList = (1 to rowNum * colNum).toList
+        //(1 to rowNum * colNum).toList map(i =>
+        //  Vertex(i))
 
       val nodeCoords =
         rows flatMap(i =>

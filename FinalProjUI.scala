@@ -4,6 +4,8 @@ import swing.event._
 import Swing._
 import BorderPanel.Position._
 
+import scala.collection.mutable.ListBuffer
+
 import Graph._
 import ZDD._
 
@@ -120,7 +122,8 @@ object FinalProjUI  extends SimpleSwingApplication {
 }
 
 class Canvas extends Panel {
-  var pathEdges = List[String]()
+  //var pathEdges = List[String]()
+  var pathEdges = ListBuffer[ListBuffer[Byte]]()
   var currentPath = List[((Int, Int), (Int, Int))]()
 
   private val jump = 64
@@ -179,13 +182,18 @@ class Canvas extends Panel {
   }
 
   def changePath(sliderValue: Int): Unit = {
-    val bStr = pathEdges(sliderValue).toList
-
+    val bStr = pathEdges(sliderValue)
+    //val bStr = pathEdges(sliderValue).toList
+    /*
     val pathMap = bStr.zipWithIndex filter (x =>
       x._1 == '1') map (index =>
         gridGraph.graph.edges(index._2))
+    */
+    val pathMap = bStr.zipWithIndex filter (x =>
+      x._1 == 1) map (index =>
+      gridGraph.graph.edges(index._2))
 
-    currentPath = pathMap map (edge =>
+    currentPath = pathMap.toList map (edge =>
       (gridGraph.vertexToCoord(edge.u), gridGraph.vertexToCoord(edge.v)))
 
     repaint()
@@ -199,16 +207,17 @@ class Canvas extends Panel {
     case 2 =>
       val ggV = gridGraph.graph.vertices
 
-      val h = if (gridGraph.rowNum == 7) {
-        List(VertexPair(ggV(28), ggV(30)), VertexPair(ggV(31), ggV.last), VertexPair(ggV(15), ggV(33))) //VertexPair(ggV(0), ggV.last))
-      } else if (gridGraph.rowNum == 3)  {
-        List(VertexPair(ggV(4), ggV(7)), VertexPair(ggV(6), ggV.last))
-      } else {
+      val h =
+      //if (gridGraph.rowNum == 7) {
+      //  List(VertexPair(ggV(28), ggV(30)), VertexPair(ggV(31), ggV.last), VertexPair(ggV(15), ggV(33))) //VertexPair(ggV(0), ggV.last))
+      //} else if (gridGraph.rowNum == 3)  {
+      //  List(VertexPair(ggV(4), ggV(7)), VertexPair(ggV(6), ggV.last))
+      //} else {
         List(VertexPair(ggV(0), ggV.last))
-      }
+      //}
 
-      val zdd = algorithmTwo(gridGraph.graph, h)
-      pathEdges = enumZDDValidPaths(zdd)
+      pathEdges = enumZDDValidPaths(algorithmTwo(gridGraph.graph, h))
+      println("Number of valid paths: "+ pathEdges.length)
   }
 }
 
