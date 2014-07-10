@@ -1,4 +1,4 @@
-import java.awt.{ RenderingHints, BasicStroke }
+import java.awt.{BorderLayout, RenderingHints, BasicStroke}
 import swing._
 import swing.event._
 import Swing._
@@ -9,62 +9,37 @@ import scala.collection.mutable.ListBuffer
 import Graph._
 import ZDD._
 
+
 object FinalProjUI  extends SimpleSwingApplication {
   def top = new MainFrame {
     title = "fun with zdds"
-
     contents = new BorderPanel {
-
       val tabs = new TabbedPane {
-
         import TabbedPane._
 
-        val parameters = new FlowPanel {
-          border = Swing.EmptyBorder(5, 5, 5, 5)
-          contents += new BoxPanel(Orientation.Vertical) {
-            border = CompoundBorder(TitledBorder(EtchedBorder, "Grid Size"), EmptyBorder(5, 5, 5, 10))
-            val oneOne = new RadioButton("1 x 1")
-            val oneTwo = new RadioButton("1 x 2")
-            val oneThree = new RadioButton("1 x 3")
-            val twoTwo = new RadioButton("2 x 2")
-            val threeThree = new RadioButton("3 x 3")
-            val fourFour = new RadioButton("4 x 4")
-            val sixSix = new RadioButton("6 x 6")
-            val eightEight = new RadioButton("8 x 8")
-            val twoFour = new RadioButton("2 x 4")
+        val param = new GridPanel(1, 3) {
+          val height = new ComboBox(1 to 8)
+          val width = new ComboBox(1 to 8)
 
-            val mutex = new ButtonGroup(oneOne, oneTwo, oneThree, twoTwo, threeThree, fourFour, sixSix, eightEight, twoFour)
-            contents ++= mutex.buttons
-            listenTo(oneOne, oneTwo, oneThree, twoTwo, fourFour, threeThree, sixSix, eightEight, twoFour)
-            //val mutex = new ButtonGroup(oneOne, oneTwo, oneThree, twoTwo, threeThree)
-            listenTo(oneOne, oneTwo, oneThree, twoTwo, threeThree)
-
-            reactions += {
-              case ButtonClicked(`oneOne`) =>
-                visualization.canvas.updateGraphDim(2, 2)
-              case ButtonClicked(`oneTwo`) =>
-                visualization.canvas.updateGraphDim(2, 3)
-              case ButtonClicked(`oneThree`) =>
-                visualization.canvas.updateGraphDim(2, 4)
-              case ButtonClicked(`twoTwo`) =>
-                visualization.canvas.updateGraphDim(3, 3)
-              case ButtonClicked(`threeThree`) =>
-                visualization.canvas.updateGraphDim(4, 4)
-              case ButtonClicked(`fourFour`) =>
-                visualization.canvas.updateGraphDim(5, 5)
-              case ButtonClicked(`sixSix`) =>
-                visualization.canvas.updateGraphDim(7, 7)
-              case ButtonClicked(`eightEight`) =>
-                visualization.canvas.updateGraphDim(9, 9)
-              case ButtonClicked(`twoFour`) =>
-                visualization.canvas.updateGraphDim(3, 5)
-            }
+          val hFlow = new FlowPanel {
+            contents += new Label("Height: ")
+            contents += height
           }
+          val wFlow = new FlowPanel {
+            contents += new Label("Width: ")
+            contents += width
+          }
+          val gridSizeChoices = new BoxPanel(Orientation.Vertical) {
+            border = CompoundBorder(TitledBorder(EtchedBorder, "Grid Size"), EmptyBorder(5, 5, 5, 10))
+            contents += hFlow
+            contents += wFlow
+          }
+          contents += gridSizeChoices
 
-          contents += new BoxPanel(Orientation.Vertical) {
+          val algorithmSelection = new BoxPanel(Orientation.Vertical) {
             border = CompoundBorder(TitledBorder(EtchedBorder, "Algorithm"), EmptyBorder(5, 5, 5, 10))
             val one = new RadioButton("one")
-            val two = new RadioButton("two")
+            val two = new RadioButton("Numberlink Solver")
             val mutex = new ButtonGroup(one, two)
 
             contents ++= mutex.buttons
@@ -74,11 +49,27 @@ object FinalProjUI  extends SimpleSwingApplication {
               case ButtonClicked(`one`) =>
                 visualization.canvas.collectPathEdges(1)
               case ButtonClicked(`two`) =>
+                var newHeight = height.selection.item + 1
+                var newWidth  = width.selection.item + 1
+                visualization.canvas.updateGraphDim(newHeight, newWidth)
+
                 visualization.canvas.collectPathEdges(2)
+
                 visualization.slider.max = visualization.canvas.pathEdges.length - 1
                 visualization.slider.value = 0
             }
           }
+          contents += algorithmSelection
+
+          val applySelection = new Button {
+            text = "Apply"
+          }
+
+          contents += applySelection
+        }
+
+        val parameters = new BorderPanel {
+          layout(param) = North
         }
         pages += new Page("Parameters", parameters)
 
@@ -122,7 +113,6 @@ object FinalProjUI  extends SimpleSwingApplication {
 }
 
 class Canvas extends Panel {
-  //var pathEdges = List[String]()
   var pathEdges = ListBuffer[ListBuffer[Byte]]()
   var currentPathCoords = List[((Int, Int), (Int, Int))]()
 
@@ -149,11 +139,9 @@ class Canvas extends Panel {
   private var xPathAxis = xAxis ::: (xAxis.last + 64 :: Nil)
   private var yPathAxis = yAxis ::: (yAxis.last + 64 :: Nil)
 
-  val bzl = zorn.blended.length
-  val twoStroke = new BasicStroke(2)
-  val fourStroke = new BasicStroke(4)
   val eightStroke = new BasicStroke(8)
   val sixteenStroke = new BasicStroke(16)
+  val roundSixteenStroke = new BasicStroke(16, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND)
 
   override def paintComponent(g: Graphics2D) {
     g.setBackground(zorn.titaniumWhite)
@@ -162,16 +150,17 @@ class Canvas extends Panel {
 
     g.setStroke(eightStroke)
     g.setColor(zorn.ivoryBlack)
+
     xAxis map (x =>
       yAxis map (y =>
         g.drawRect(x, y, jump, jump)))
 
-    if (!currentPathCoords.isEmpty) {
-      g.setStroke(new BasicStroke(16, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND))
-      g.setColor(zorn.yellowOchreAlpha)
-      for ((u, v) <- currentPathCoords) {
-        g.drawLine(xPathAxis(u._1), yPathAxis(u._2), xPathAxis(v._1), yPathAxis(v._2))
-      }
+    g.setStroke(roundSixteenStroke)
+    g.setColor(zorn.yellowOchreAlpha)
+
+    currentPathCoords map { case (u, v) =>
+      g.drawLine(xPathAxis(u._1), yPathAxis(u._2),
+                 xPathAxis(v._1), yPathAxis(v._2))
     }
   }
 
@@ -212,7 +201,7 @@ class Canvas extends Panel {
     case 2 =>
       val ggV = gridGraph.graph.vertices
       val h = List(VertexPair(ggV(0), ggV.last))
-      pathEdges = enumZDDValidPaths(algorithmTwo(gridGraph.graph, h))
+      pathEdges = enumZDDValidPaths(algorithmTwo(gridGraph.graph, h)).reverse
       println("Number of valid paths: "+ pathEdges.length)
   }
 }
