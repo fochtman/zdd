@@ -3,8 +3,10 @@ import swing._
 import swing.event._
 import Swing._
 import BorderPanel.Position._
+import TabbedPane._
 
 import scala.collection.mutable.ListBuffer
+import System.{currentTimeMillis => _time}
 
 import Graph._
 import ZDD._
@@ -13,63 +15,55 @@ import ZDD._
 object FinalProjUI  extends SimpleSwingApplication {
   def top = new MainFrame {
     title = "fun with zdds"
-    contents = new BorderPanel {
-      val tabs = new TabbedPane {
-        import TabbedPane._
 
-        val param = new GridPanel(1, 3) {
+    contents = new BorderPanel {
+
+      val tabs = new TabbedPane {
+
+        val param = new GridPanel(3, 1) {
+
           val height = new ComboBox(1 to 8)
           val width = new ComboBox(1 to 8)
-
-          val hFlow = new FlowPanel {
-            contents += new Label("Height: ")
-            contents += height
-          }
-          val wFlow = new FlowPanel {
-            contents += new Label("Width: ")
-            contents += width
-          }
+          val hFlow = new FlowPanel{ contents += new Label("Rows: ");   contents += height }
+          val wFlow = new FlowPanel{ contents += new Label("Columns: "); contents += width }
           val gridSizeChoices = new BoxPanel(Orientation.Vertical) {
-            border = CompoundBorder(TitledBorder(EtchedBorder, "Grid Size"), EmptyBorder(5, 5, 5, 10))
+            border = CompoundBorder(TitledBorder(EtchedBorder, "Rows * Columns"), EmptyBorder(5, 5, 5, 10))
             contents += hFlow
             contents += wFlow
           }
           contents += gridSizeChoices
 
+          val one = new RadioButton("one")
+          val two = new RadioButton("Numberlink Solver")
+          val mutex = new ButtonGroup(one, two)
           val algorithmSelection = new BoxPanel(Orientation.Vertical) {
             border = CompoundBorder(TitledBorder(EtchedBorder, "Algorithm"), EmptyBorder(5, 5, 5, 10))
-            val one = new RadioButton("one")
-            val two = new RadioButton("Numberlink Solver")
-            val mutex = new ButtonGroup(one, two)
-
             contents ++= mutex.buttons
             listenTo(one, two)
-
-            reactions += {
-              case ButtonClicked(`one`) =>
-                visualization.canvas.collectPathEdges(1)
-              case ButtonClicked(`two`) =>
-                var newHeight = height.selection.item + 1
-                var newWidth  = width.selection.item + 1
-                visualization.canvas.updateGraphDim(newHeight, newWidth)
-
-                visualization.canvas.collectPathEdges(2)
-
-                visualization.slider.max = visualization.canvas.pathEdges.length - 1
-                visualization.slider.value = 0
-            }
           }
           contents += algorithmSelection
 
-          val applySelection = new Button {
-            text = "Apply"
-          }
+          val applyGridSizeAndAlgorithm = new Button { text = "Apply" }
+          val applyPanel = new BorderPanel { layout(applyGridSizeAndAlgorithm) = North }
+          contents += applyPanel
+          listenTo(applyGridSizeAndAlgorithm)
+          reactions += {
+            case ButtonClicked(`applyGridSizeAndAlgorithm`) =>
+              var newHeight = height.selection.item + 1
+              var newWidth  = width.selection.item + 1
+              visualization.canvas.updateGraphDim(newHeight, newWidth)
+              if (mutex.selected.get.text == "one")
+                visualization.canvas.collectPathEdges(1)
+              else if (mutex.selected.get.text == "Numberlink Solver")
+                visualization.canvas.collectPathEdges(2)
 
-          contents += applySelection
+              visualization.slider.max = visualization.canvas.pathEdges.length - 1
+              visualization.slider.value = 0
+          }
         }
 
         val parameters = new BorderPanel {
-          layout(param) = North
+          layout(param) = Center
         }
         pages += new Page("Parameters", parameters)
 
@@ -82,11 +76,9 @@ object FinalProjUI  extends SimpleSwingApplication {
             max = 0
             majorTickSpacing = 1
             paintTicks = true
-            paintLabels = true
           }
           layout(canvas) = Center
           layout(slider) = South
-
           listenTo(slider)
 
           reactions += {
@@ -193,16 +185,27 @@ class Canvas extends Panel {
     repaint()
   }
 
+  def time[R](block: => R, funcName: String): R = {
+    val t0 = _time
+    val result = block
+    println(funcName +"\telapsed time:k" + (_time - t0) + "ms")
+    result
+  }
+
   def collectPathEdges(choice: Int): Unit = choice match {
     case 1 =>
-      val zdd = algorithmOne(gridGraph.graph)
-      println("Number of paths: "+ countZDDOnePaths(zdd))
+      val ggV = gridGraph.graph.vertices
+      val h = List(VertexPair(ggV(0), ggV.last))
+      val zdd = time (algorithmTwo(gridGraph.graph, h), "Algo2 =>")
+      pathEdges = enumZDDValidPaths(zdd)
+      println("Algo2 Number of valid paths: "+ pathEdges.length +"\n")
 
     case 2 =>
       val ggV = gridGraph.graph.vertices
       val h = List(VertexPair(ggV(0), ggV.last))
-      pathEdges = enumZDDValidPaths(algorithmTwo(gridGraph.graph, h)).reverse
-      println("Number of valid paths: "+ pathEdges.length)
+      val zdd = time (numberLinkSolver(gridGraph.graph, h), "Numberlink solver =>")
+      pathEdges = time (enumZDDValidPaths(zdd), "Path finding =>\t")
+      println("Number of valid paths: "+ pathEdges.length +"\n")
   }
 }
 
