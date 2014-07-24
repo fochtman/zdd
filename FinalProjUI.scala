@@ -199,13 +199,14 @@ class Canvas extends Panel {
       val zdd = time (algorithmTwo(gridGraph.graph, h), "Algo2 =>")
       pathEdges = time (enumZDDValidPaths(zdd), "Path finding =>\t")
       println("Algo2 Number of valid paths: "+ pathEdges.length +"\n")
-
+    /*
     case 2 =>
       val ggV = gridGraph.graph.vertices
       val h = List(VertexPair(ggV(0), ggV.last))
       val zdd = time (numberLinkSolver(gridGraph.graph, h), "Numberlink solver =>")
       pathEdges = time (enumZDDValidPaths(zdd), "Path finding =>\t")
       println("Number of valid paths: "+ pathEdges.length +"\n")
+      */
   }
 }
 
