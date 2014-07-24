@@ -63,5 +63,4 @@ object Graph {
       Graph(vertices, edges)
     }
   }
-
 }

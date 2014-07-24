@@ -1,4 +1,5 @@
 import Graph._
+import scala.annotation.tailrec
 import scala.collection.mutable.{ HashMap, ListBuffer }
 import collection.immutable.ListMap
 
@@ -91,6 +92,7 @@ object ZDD {
     ELM(g.edges(i+1), mates)
   }
 
+  @tailrec
   def addNextFrontier(i: Int, N: HashMap[Int, Set[ELM]], children: List[ZDD]): Unit = children match {
     case Nil => ()
 
@@ -107,13 +109,13 @@ object ZDD {
     case _ => ()
   }
 
-  def countZDDOnePaths(root: ZDD): Int = {
+  def countZDDOnePathsDF(root: ZDD): Int = {
     val resultTable = scala.collection.mutable.HashMap[ZDD, Int]()
 
     def countHelper(node: ZDD): Int = {
       if (node == `zeroTerminal`) 0
       else if (node == `oneTerminal`) 1
-      else if (resultTable.contains(node)) 1
+      else if (resultTable.contains(node)) resultTable(node)
       else {
         node match {
           case Node(p, lo, hi) =>
@@ -136,6 +138,20 @@ object ZDD {
         helper(lo, path :+ z)
         helper(hi, path :+ o)
 
+      case Node(_, `zeroTerminal`, hi: Node) =>
+        helper(hi, path :+ o)
+
+      case Node(_, `oneTerminal`, hi: Node) =>
+        (path :+ z) +=: pathBuffer
+        helper(hi, path :+ o)
+
+      case Node(_, lo: Node, `zeroTerminal`) =>
+        helper(lo, path :+ z)
+
+      case Node(_, lo: Node, `oneTerminal`) =>
+        (path :+ o) +=: pathBuffer
+        helper(lo, path :+ z)
+
       case Node(_, `zeroTerminal`, `zeroTerminal`) =>
 
       case Node(_, `zeroTerminal`, `oneTerminal`) =>
@@ -147,20 +163,6 @@ object ZDD {
       case Node(_, `oneTerminal`, `oneTerminal`) =>
         (path += z) +=: pathBuffer
         (path += o) +=: pathBuffer
-
-      case Node(_, `zeroTerminal`, hi: Node) =>
-        helper(hi, path :+ o)
-
-      case Node(_, `oneTerminal`, hi: Node) =>
-        helper(hi, path :+ o)
-        (path :+ z) +=: pathBuffer
-
-      case Node(_, lo: Node, `zeroTerminal`) =>
-        helper(lo, path :+ z)
-
-      case Node(_, lo: Node, `oneTerminal`) =>
-        helper(lo, path :+ z)
-        (path :+ o) +=: pathBuffer
     }
 
     helper(root, new ListBuffer[Byte]())
@@ -171,6 +173,7 @@ object ZDD {
   def buildZDD(zddList: List[Node]): Node = {
     val mapZDD = Map(zddList map(node =>
       (node.params, node)):_*)
+
 
     val rootZDD = mapZDD(zddList(0).params)
 
@@ -184,7 +187,7 @@ object ZDD {
       case Node(p: ELM, lo: ELM, terminal) =>
         Node(p, helperFunc(mapZDD(lo)), terminal)
 
-      case n @ Node(p: ELM, _, _) => n
+      case Node(p: ELM, _, _) => node
     }
     helperFunc(rootZDD)
   }
@@ -231,6 +234,7 @@ object ZDD {
     val edge = n.edgeLabel
     val mateTable = n.mates
 
+    @tailrec
     def matchV(vertexList: List[Vertex]): Boolean = vertexList match {
       case Nil => false
 
@@ -251,6 +255,7 @@ object ZDD {
           matchV(v)
     }
 
+    @tailrec
     def matchV2(vertexList: List[Vertex]): Boolean = vertexList match {
       case Nil => false
 
@@ -303,7 +308,8 @@ object ZDD {
 
     def quickSolution(i: Int, n: ELM): Boolean = {
       for (u <- domain(i+1); v <- g.vertices)
-        if (u != v && n.mates(u) == v && h.contains(VertexPair(u, v))) return true
+        if (u != v && n.mates(u) == v && h.contains(VertexPair(u, v)))
+          return true
       false
     }
 
@@ -316,7 +322,6 @@ object ZDD {
         For both 0-child and 1-child when i == |E| + 1, they are assumed to lead to
         one terminal
          */
-
         val zeroChild =
           if (zeroChildIsIncompatible(i, n, h, hSet, domain))
             zeroTerminal
@@ -340,8 +345,8 @@ object ZDD {
             oneTerminal
           else
             oneChildPossibility
-        addNextFrontier(i+1, frontier, List(zeroChild, oneChild))
 
+        addNextFrontier(i+1, frontier, List(zeroChild, oneChild))
         //could just return a 3 tuple, turn it into a node later
         Node(n, zeroChild, oneChild)
       }

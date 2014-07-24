@@ -162,22 +162,22 @@ class Canvas extends Panel {
     xOrigin = (size.width - (jump * (gridGraph.colNum-1))) / 2
     yOrigin = (size.height - (jump * (gridGraph.rowNum-1))) / 2
 
-    xMax = xOrigin + (gridGraph.colNum-1) * jump
+    xMax = xOrigin + (gridGraph.colNum - 1) * jump
     xAxis = (Range(xOrigin, xMax) by jump).toList
 
-    yMax = yOrigin + (gridGraph.rowNum-1) * jump
+    yMax = yOrigin + (gridGraph.rowNum - 1) * jump
     yAxis = (Range(yOrigin , yMax) by jump).toList
 
-    xPathAxis = xAxis ::: (xAxis.last + jump :: Nil)
-    yPathAxis = yAxis ::: (yAxis.last + jump :: Nil)
+    xPathAxis = xAxis ::: (xAxis.last + jump) :: Nil
+    yPathAxis = yAxis ::: (yAxis.last + jump) :: Nil
   }
 
   def changePath(sliderValue: Int): Unit = {
-    val bStr = pathEdges(sliderValue)
+    val byteStr = pathEdges(sliderValue)
 
-    val pathMap = bStr.zipWithIndex filter (x =>
+    val pathMap = byteStr.zipWithIndex filter (x =>
       x._1 == 1) map (index =>
-      gridGraph.graph.edges(index._2))
+        gridGraph.graph.edges(index._2))
 
     currentPathCoords = pathMap.toList map (edge =>
       (gridGraph.vertexToCoord(edge.u), gridGraph.vertexToCoord(edge.v)))
@@ -197,7 +197,7 @@ class Canvas extends Panel {
       val ggV = gridGraph.graph.vertices
       val h = List(VertexPair(ggV(0), ggV.last))
       val zdd = time (algorithmTwo(gridGraph.graph, h), "Algo2 =>")
-      pathEdges = enumZDDValidPaths(zdd)
+      pathEdges = time (enumZDDValidPaths(zdd), "Path finding =>\t")
       println("Algo2 Number of valid paths: "+ pathEdges.length +"\n")
 
     case 2 =>
