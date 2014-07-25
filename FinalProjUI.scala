@@ -10,6 +10,7 @@ import System.{currentTimeMillis => _time}
 
 import Graph._
 import ZDD._
+import BDD.{algoTwo, enumZDDValidPaths2}
 
 
 object FinalProjUI  extends SimpleSwingApplication {
@@ -46,9 +47,15 @@ object FinalProjUI  extends SimpleSwingApplication {
           val applyGridSizeAndAlgorithm = new Button { text = "Apply" }
           val applyPanel = new BorderPanel { layout(applyGridSizeAndAlgorithm) = North }
           contents += applyPanel
+
           listenTo(applyGridSizeAndAlgorithm)
           reactions += {
             case ButtonClicked(`applyGridSizeAndAlgorithm`) =>
+              /*
+              The ZDDs can get rather large (in the millions of nodes) so it is pertinent
+              to clean the memory as best as we can. So we call System.gc()
+               */
+              System.gc()
               var newHeight = height.selection.item + 1
               var newWidth  = width.selection.item + 1
               visualization.canvas.updateGraphDim(newHeight, newWidth)
@@ -188,7 +195,8 @@ class Canvas extends Panel {
   def time[R](block: => R, funcName: String): R = {
     val t0 = _time
     val result = block
-    println(funcName +"\telapsed time:k" + (_time - t0) + "ms")
+    val t1 = _time
+    println(funcName +"\telapsed time: " + (t1 - t0) + "ms")
     result
   }
 
@@ -199,14 +207,14 @@ class Canvas extends Panel {
       val zdd = time (algorithmTwo(gridGraph.graph, h), "Algo2 =>")
       pathEdges = time (enumZDDValidPaths(zdd), "Path finding =>\t")
       println("Algo2 Number of valid paths: "+ pathEdges.length +"\n")
-    /*
+
     case 2 =>
       val ggV = gridGraph.graph.vertices
       val h = List(VertexPair(ggV(0), ggV.last))
-      val zdd = time (numberLinkSolver(gridGraph.graph, h), "Numberlink solver =>")
-      pathEdges = time (enumZDDValidPaths(zdd), "Path finding =>\t")
+      val zdd = time (algoTwo(gridGraph.graph, h), "Numberlink solver =>")
+      pathEdges = time (enumZDDValidPaths2(zdd), "Path finding =>\t")
       println("Number of valid paths: "+ pathEdges.length +"\n")
-      */
+
   }
 }
 

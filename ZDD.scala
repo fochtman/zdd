@@ -2,9 +2,10 @@ import Graph._
 import scala.annotation.tailrec
 import scala.collection.mutable.{ HashMap, ListBuffer }
 import collection.immutable.ListMap
+import System.{currentTimeMillis => _time}
 
 object ZDD {
-  //abstract class ZDD
+  //abstract class ZDD extends AnyVal
   trait ZDD
 
   object zeroTerminal extends ZDD {
@@ -17,27 +18,38 @@ object ZDD {
     override def toString = "1Term"
   }
 
-  //class Node(eL: Edge, m: Map[Vertex, Vertex], lc: ZDD, hc: ZDD) extends ZDD {
-  class Node(eL: Edge, m: Map[Vertex, Vertex]) extends AnyVal with ZDD {
-    val edgeLabel = eL
-    val mates = m
-    var loChild: ZDD = oneTerminal
-    var hiChild: ZDD = oneTerminal
-
-    def isEmpty: Boolean =
-      mates.isEmpty
-
-    def get: (Edge, Map[Vertex, Vertex], ZDD, ZDD)
-      (edgeLabel, mates, loChild, hiChild)
-
-    //override def toString = "NODE_["+ edgeLabel +"]("+ mates +") lo("+ loChild +") hi("+ hiChild +")]__"
+  object nullTerminal extends ZDD {
+    val value = -1
+    override def toString = "nullTerm"
   }
 
+  class Node(val edgeLabel: Edge, val mates: Map[Vertex, Vertex], var loChild: ZDD, var hiChild: ZDD) extends ZDD {
+    def isEmpty: Boolean =
+      false
+    def get: Node = this
+
+    val _1: Edge = edgeLabel
+    val _2: Map[Vertex, Vertex] = mates
+    def _3: ZDD = loChild
+    def _4: ZDD = hiChild
+
+    override def toString = "NODE_["+ edgeLabel +"]("+ mates +") lo("+ loChild +") hi("+ hiChild +")]__"
+  }
+
+  object Node {
+    def unapply(n: Node) = n
+    def apply(e: Edge, m: Map[Vertex, Vertex]) = new Node(e, m, nullTerminal, nullTerminal)
+  }
+
+
+  /*
   object Node {
     def unapply(n: Node): Option[(Edge, Map[Vertex, Vertex], ZDD, ZDD)] = {
       Some(n.edgeLabel, n.mates, n.loChild, n.hiChild)
     }
   }
+  */
+
 
 
   def prettyPrintZDD(zddList: List[Node]): Unit = {
@@ -49,19 +61,6 @@ object ZDD {
     }
     println(zddNodeStrs)
   }
-
-  /*
-  def setupFrontier(g: Graph, domain: Map[Int, List[Vertex]]) = {
-
-    val firstEdge = g.edges(0)
-    val rootMates: Map[Vertex, Vertex] = ListMap(domain(0) zip g.vertices:_*)
-    val rootParams = (firstEdge, rootMates)
-    //val frontier = HashMap[Int, Set[ELM]](0 -> Set(rootParams))
-    val frontier = HashMap[Int, Set[Node]](0 -> Set(rootParams))
-    Range(1, g.edges.length) map (i => frontier(i) = Set())
-    frontier
-  }
-  */
 
   def dom(i: Int, edges: List[Edge]): List[(Int, List[Vertex])] = edges match {
     case Nil => Nil
@@ -79,7 +78,7 @@ object ZDD {
         n.mates
       else
         n.mates - removal(0)
-    new Node(g.edges(i+1), mates)
+    Node(g.edges(i+1), mates)
   }
 
   def rejectEdge(n: Node, edge: Edge): Boolean = {
@@ -91,7 +90,7 @@ object ZDD {
       false
   }
 
-  def getOneChild(i: Int, g: Graph, n: Node, domain: Map[Int, List[Vertex]]): Node = {
+  def getOneChild(i: Int, g: Graph, n: Node, nextDomain: List[Vertex]): Node = {
     val edge = g.edges(i)
     val edgeSet = Set(edge.u, edge.v)
     val zero: Vertex = 0
@@ -99,7 +98,7 @@ object ZDD {
     val mateUpdate =
       for {
         (w, _) <- n.mates
-        if domain(i+1).contains(w)
+        if nextDomain.contains(w)
       } yield {
         if (edgeSet.contains(w) && n.mates(w) != w)
           zero
@@ -110,17 +109,18 @@ object ZDD {
         else
           n.mates(w)
       }
-    val mates = ListMap(domain(i+1) zip mateUpdate:_*)
-    new Node(g.edges(i+1), mates)
+
+    val mateTuples = nextDomain zip mateUpdate
+    val mates = ListMap(mateTuples:_*)
+    Node(g.edges(i+1), mates)
   }
 
   @tailrec
-  def addNextFrontier(i: Int, N: HashMap[Int, Set[Node]], children: List[ZDD]): Unit = children match {
+  def addNextFrontier(i: Int, N: scala.collection.mutable.HashMap[Int, Set[Node]], children: List[ZDD]): Unit = children match {
     case Nil => ()
 
     case (head: Node) :: tail =>
-      N(i) = N(i) + head
-      //N(i).foreach(println)//(N(i).size)
+      N(i) += head
       addNextFrontier(i, N, tail)
 
     case `zeroTerminal` :: tail =>
@@ -253,32 +253,45 @@ object ZDD {
   }
 
   def algorithmTwo(g: Graph, h: List[VertexPair]): Node = {
+    val startT = _time
+    var t = _time
+
     val domain = Map.empty ++ dom(0, g.edges)
-    val firstEdge = g.edges(0)
     val rootMates: Map[Vertex, Vertex] = ListMap(domain(0) zip g.vertices:_*)
-    val root = new Node(firstEdge, rootMates)
-    val frontier = HashMap[Int, Set[Node]](0 -> Set(root))
-    Range(1, g.edges.length) map (i => frontier(i) = Set())
+    val root = Node(g.edges(0), rootMates)
+
+    val frontier = scala.collection.mutable.HashMap[Int, Set[Node]](0 -> Set(root))
+    // Initialize frontier
+    Range(1, g.edges.length) map (i =>
+      frontier(i) = Set())
 
     val edgeIndices = g.edges.indices.toList
     val hSet = h.flatMap(p => List(p.v0, p.v1)).toSet
 
+    val setupT = _time - t
+
+    var zeroChildT = ListBuffer[Long]()
+    var oneChildTP = ListBuffer[Long]()
+    var oneChildT = ListBuffer[Long]()
+    var frontT = ListBuffer[Long]()
+    var childT = ListBuffer[Long]()
 
     def quickSolution(i: Int, n: Node): Boolean = {
       for (u <- domain(i+1); v <- g.vertices)
-        if (u != v && n.mates(u) == v && h.contains(VertexPair(u, v)))
-          return true
+        if (u != v && n.mates(u) == v && h.contains(VertexPair(u, v))) return true
+          //println("in quickS")
+          //return true
       false
     }
 
-    for {
-      i <- edgeIndices
-      n <- frontier(i)
-    } yield {
+    var counter = 0
+    for (i <- edgeIndices; n <- frontier(i)) {
+      counter += 1
       /*
       For both 0-child and 1-child when i == |E| + 1, they are assumed to lead to
       one terminal
        */
+      t = _time //zeroChild time
       val zeroChild =
         if (zeroChildIsIncompatible(i, n, h, hSet, domain))
           zeroTerminal
@@ -286,27 +299,38 @@ object ZDD {
           getZeroChild(i, g, n, domain)
         else
           oneTerminal
+      zeroChildT += (_time - t)
 
+      t = _time //oneChildP time
       val oneChildPossibility =
         if (rejectEdge(n, g.edges(i)))
           zeroTerminal
         else if (oneChildIsIncompatible(i, g, n, h, hSet, domain))
           zeroTerminal
         else if (i+1 < edgeIndices.length)
-          getOneChild(i, g, n, domain)
+          getOneChild(i, g, n, domain(i+1))
         else
           oneTerminal
+      oneChildTP += (_time - t)
 
+      t = _time //oneChild time
+      //val oneChild = oneChildPossibility
       val oneChild =
-        if (i+1 < domain.size && quickSolution(i, n))
+        if (i+1 < domain.size && quickSolution(i, n)) {
+          println("HERE")
           oneTerminal
+        }
         else
           oneChildPossibility
 
-      //println(i, zeroChild, oneChild)
-      println("add next frontier: ")
-      addNextFrontier(i+1, frontier, List(zeroChild, oneChild))
+      oneChildT += (_time - t)
 
+      t = _time
+      addNextFrontier(i+1, frontier, List(zeroChild, oneChild))
+      frontT += (_time - t)
+
+      t = _time
+      // val logWithDateBound = log(date, _ : String)
       if (i == 0) {
         root.loChild = zeroChild
         root.hiChild = oneChild
@@ -314,9 +338,18 @@ object ZDD {
         n.loChild = zeroChild
         n.hiChild = oneChild
       }
-
+      childT += (_time - t)
     }
-    println(root)
+
+    println("setupT: "    +setupT)
+    println("zeroChildT: "+zeroChildT.sum)
+    println("oneChildTP: "+oneChildTP.sum)
+    println("oneChildT: " +oneChildT.sum)
+    println("frontT: "    +frontT.sum)
+    println("childT: "    +childT.sum)
+    println("sumT: "      +(zeroChildT.sum + oneChildTP.sum + oneChildT.sum + frontT.sum + childT.sum + setupT))
+    println("total: "+(_time - startT))
+    println("counter: "+counter)
     root
   }
 }
