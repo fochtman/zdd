@@ -73,91 +73,31 @@ object ZDD {
 
   object Node {
     def unapply(n: Node) = n
-    //def apply(e: Edge, m: Map[Vertex, Vertex]) = new Node(e, m, zeroTerminal, zeroTerminal)
     def apply(e: Edge, m: Map[Vertex, Vertex]) = new Node(e, m, null, null)
   }
 
-  /*
-  object Node {
-    def unapply(n: Node): Option[(Edge, Map[Vertex, Vertex], ZDD, ZDD)] = {
-      Some(n.edgeLabel, n.mates, n.loChild, n.hiChild)
-    }
-  }
-  */
+  def setupDomain(i: Int, edges: List[Edge]): Map[Int, List[Vertex]] = {
+    // Helper function dom returns a List((i,List(vertex0,v1,...,vK),...,(i+?,List(vK-1,vK))
+    def dom(i: Int, edges: List[Edge]): List[(Int, List[Vertex])] =
+      edges match {
+        case Nil => Nil
 
-
-
-  def prettyPrintZDD(zddList: List[Node]): Unit = {
-    var inc = 0
-    var zddNodeStrs = (zddList map(_.toString)).mkString("\n")
-    for (p <- zddList) {
-      zddNodeStrs = zddNodeStrs.replaceAllLiterally(p.toString, inc.toString)
-      inc += 1
-    }
-    println(zddNodeStrs)
-  }
-
-  def dom(i: Int, edges: List[Edge]): List[(Int, List[Vertex])] = edges match {
-    case Nil => Nil
-
-    case head :: tail =>
-      val sortedDom = edges.flatMap(e =>
-        List(e.u, e.v)).distinct.sortWith((v0,v1) => v0 < v1)
-      (i, sortedDom) :: Nil ::: dom(i+1, tail)
-  }
-
-
-  def rejectEdge(n: Node, edge: Edge): Boolean = {
-    if (n.mates(edge.u) == 0 || n.mates(edge.u) == edge.v)
-      true
-    else if (n.mates(edge.v) == 0 || n.mates(edge.v) == edge.u)
-      true
-    else
-      false
-  }
-
-  def getOneChild(i: Int, g: Graph, n: Node, nextDomain: List[Vertex]): Node = {
-    val edge = g.edges(i)
-    val edgeSet = Set(edge.u, edge.v)
-    val zero: Vertex = 0
-
-    val mateUpdate =
-      for {
-        (w, _) <- n.mates
-        if nextDomain.contains(w)
-      } yield {
-        if (edgeSet.contains(w) && n.mates(w) != w)
-          zero
-        else if (n.mates(w) == edge.u)
-          n.mates(edge.v)
-        else if (n.mates(w) == edge.v)
-          n.mates(edge.u)
-        else
-          n.mates(w)
+        case head :: tail =>
+          val sortedDom = edges.flatMap(e =>
+            List(e.u, e.v)).distinct.sortWith((v0, v1) => v0 < v1)
+          (i, sortedDom) :: Nil ::: dom(i + 1, tail)
       }
-
-    val mateTuples = nextDomain zip mateUpdate
-    val mates = ListMap(mateTuples:_*)
-    Node(g.edges(i+1), mates)
+    Map.empty ++ dom(0, edges)
   }
 
-  @tailrec
-  def addNextFrontier(i: Int, N: scala.collection.mutable.HashMap[Int, Set[Node]], children: List[ZDD]): Unit = children match {
-    case Nil => ()
-
-    case (head: Node) :: tail =>
-      N(i) += head
-      addNextFrontier(i, N, tail)
-
-    case `zeroTerminal` :: tail =>
-      addNextFrontier(i, N, tail)
-
-    case `oneTerminal` :: tail =>
-      addNextFrontier(i, N, tail)
-
-    case _ => ()
+  def setupFrontier(g: Graph, domain: Map[Int, List[Vertex]]) = {
+    val rootMates: Map[Vertex, Vertex] = ListMap(domain(0) zip g.vertices:_*)
+    val root = Node(g.edges(0), rootMates)
+    val frontier = scala.collection.mutable.HashMap[Int, Set[Node]](0 -> Set(root))
+    Range(1, g.edges.length) map (i =>
+      frontier(i) = Set())
+    frontier
   }
-
 
   def enumZDDValidPaths(root: Node): ListBuffer[ListBuffer[Byte]] = {
     val z: Byte = 0
@@ -201,102 +141,28 @@ object ZDD {
 
     pathBuffer
   }
-    /*
-    if for some v that exists in n.edgeLabel diff domain(i+1) one of the following holds, the 0-child is incompatible:
-      if (v exists in hSet && mate(v) == v)
-        then (m,i,0) is incompatible
-      else if (v !exists in hSet && mate(v) !exist in {0, v})
-        then (m,i,0) is incompatible
+
+  /*
+  For both 0-child and 1-child when i == |E| + 1, they are assumed to lead to
+  one terminal
    */
-  def zeroChildIsIncompatible(i: Int, n: Node, h: List[VertexPair], hSet: Set[Vertex], domain: Map[Int, List[Vertex]]): Boolean = {
-    val edge = n.edgeLabel
-    val mateTable = n.mates
-
-    @tailrec
-    def matchV(vertexList: List[Vertex]): Boolean = vertexList match {
-      case Nil => false
-
-      case (v: Vertex) :: Nil =>
-        if (hSet.contains(v) && mateTable(v) == v)
-          true
-        else if (!hSet.contains(v) && (mateTable(v) != 0 && mateTable(v) != v))
-          true
-        else
-          false
-
-      case (u: Vertex) :: v =>
-        if (hSet.contains(u) && mateTable(u) == u)
-          true
-        else if (!hSet.contains(u) && (mateTable(u) != 0 && mateTable(u) != u))
-          true
-        else
-          matchV(v)
-    }
-
-    @tailrec
-    def matchV2(vertexList: List[Vertex]): Boolean = vertexList match {
-      case Nil => false
-
-      case (u: Vertex) :: tail =>
-        if (mateTable(u) == u) {
-          true
-        }
-        else
-          matchV2(tail)
-    }
-
-    val nextDom =
-      if (i + 1 < domain.size) domain(i + 1)
-      else Nil
-
-
-    matchV(List(edge.u, edge.v) diff nextDom)
-    /*
-    val res0 = matchV(List(edge.u, edge.v) diff nextDom)
-    // uncomment for increased restrictions
-    val res1 = matchV2(domain(i) diff nextDom)
-    res0 || res1
-    */
-
-  }
-
-  def oneChildIsIncompatible(i: Int, vertexSet: Set[Vertex], n: Node, h: List[VertexPair], hSet: Set[Vertex], domain: Map[Int, List[Vertex]]): Boolean = {
-      val nextDom =
-        if (i + 1 < domain.size) domain(i + 1)
-        else Nil
-      val hUnionVDiff = hSet union (vertexSet diff nextDom.toSet)
-      val mateU = n.mates(n.edgeLabel.u)
-      val mateV = n.mates(n.edgeLabel.v)
-
-      if (hSet.contains(n.edgeLabel.v) && n.mates(n.edgeLabel.v) != n.edgeLabel.v)
-        true
-      else if (hSet.contains(n.edgeLabel.u) && n.mates(n.edgeLabel.u) != n.edgeLabel.u)
-        true
-      else if (hUnionVDiff.contains(mateU) && hUnionVDiff.contains(mateV) && !h.contains(VertexPair(mateU, mateV)))
-        true
-      else
-        false
-  }
-
   def algorithmTwo(g: Graph, h: List[VertexPair]): Node = {
     val startT = _time
     var t = _time
 
-    val domain = Map.empty ++ dom(0, g.edges)
-    val rootMates: Map[Vertex, Vertex] = ListMap(domain(0) zip g.vertices:_*)
-    val root = Node(g.edges(0), rootMates)
+    val edges = g.edges
+    val domain = setupDomain(0, edges)
+    val frontier = setupFrontier(g, domain)
 
-    val frontier = scala.collection.mutable.HashMap[Int, Set[Node]](0 -> Set(root))
-    // Initialize frontier
-    Range(1, g.edges.length) map (i =>
-      frontier(i) = Set())
-
-    val edgeIndices = g.edges.indices.toList
+    // collections which are used frequently
+    val edgeIndices = edges.indices.toList
     val vertexSet = g.vertices.toSet
     val hSet = h.flatMap(p => List(p.v0, p.v1)).toSet
 
     val iMax = edgeIndices.length
     assert(iMax == domain.size, "domain.size != edgeIndices.length")
+
+    val hamiltonianPath = false
 
     val setupT = _time - t
 
@@ -305,35 +171,169 @@ object ZDD {
     var oneChildT = ListBuffer[Long]()
     var frontT = ListBuffer[Long]()
 
+    /*
+    Start zeroChild calculations
+     */
+    def zeroChildIsIncompatible(i: Int, n: Node): Boolean = {
+      val edge = n.edgeLabel
+      val mateTable = n.mates
+      val nextDomain =
+        if (i + 1 < iMax) domain(i + 1)
+        else Nil
+
+      @tailrec
+      def matchV(vertexList: List[Vertex]): Boolean = vertexList match {
+        case Nil => false
+
+        case (v: Vertex) :: Nil =>
+          if (hSet.contains(v) && mateTable(v) == v)
+            true
+          else if (!hSet.contains(v) && (mateTable(v) != 0 && mateTable(v) != v))
+            true
+          else
+            false
+
+        case (u: Vertex) :: v =>
+          if (hSet.contains(u) && mateTable(u) == u)
+            true
+          else if (!hSet.contains(u) && (mateTable(u) != 0 && mateTable(u) != u))
+            true
+          else
+            matchV(v)
+      }
+
+      @tailrec
+      def matchV2(vertexList: List[Vertex]): Boolean = vertexList match {
+        case Nil => false
+
+        case (u: Vertex) :: tail =>
+          if (mateTable(u) == u) {
+            true
+          }
+          else
+            matchV2(tail)
+      }
+
+      if (hamiltonianPath) {
+        val res0 = matchV(List(edge.u, edge.v) diff nextDomain)
+        val res1 = matchV2(domain(i) diff nextDomain)
+        res0 || res1
+      } else {
+        matchV(List(edge.u, edge.v) diff nextDomain)
+      }
+    }
+
     def getZeroChild(i: Int, n: Node): Node = {
-      val removal = (domain(i).toSet &~ domain(i+1).toSet).toList
+      // could pre-calculate these domain differences
+      val removal = domain(i) diff domain(i+1)
       val mates =
         if (removal.isEmpty)
           n.mates
         else
           n.mates - removal(0)
-      Node(g.edges(i+1), mates)
+      Node(edges(i+1), mates)
     }
 
     def decideZeroChild(i: Int, n: Node): ZDD = {
-      if (zeroChildIsIncompatible (i, n, h, hSet, domain) )
+      if (zeroChildIsIncompatible (i, n) )
         zeroTerminal
       else if (i + 1 < iMax)
         getZeroChild (i, n)
       else
         oneTerminal
     }
+    /*
+    End zeroChild calculations
+     */
+
+    /*
+    Start oneChild calculations
+     */
+
+    def rejectEdge(n: Node, edge: Edge): Boolean = {
+      val u = edge.u
+      val v = edge.v
+      val nMates = n.mates
+
+      if (nMates(u) == 0 || nMates(u) == v)
+        true
+      else if (nMates(v) == 0 || nMates(v) == u)
+        true
+      else
+        false
+    }
+
+    /*
+    if for some v that exists in n.edgeLabel diff domain(i+1) one of the following holds, the 0-child is incompatible:
+      if (v exists in hSet && mate(v) == v)
+        then (m,i,0) is incompatible
+      else if (v !exists in hSet && mate(v) !exist in {0, v})
+        then (m,i,0) is incompatible
+   */
+    def oneChildIsIncompatible(i: Int, n: Node): Boolean = {
+      if (rejectEdge(n, edges(i)))
+        true
+      else {
+        val nextDom =
+          if (i + 1 < iMax) domain(i + 1)
+          else Nil
+        val hUnionVDiff = hSet union (vertexSet diff nextDom.toSet)
+        val u = n.edgeLabel.u
+        val v = n.edgeLabel.v
+        val nMates = n.mates
+        val mateOfU = nMates(u)
+        val mateOfV = nMates(v)
+
+        if (hSet.contains(v) && nMates(v) != v)
+          true
+        else if (hSet.contains(u) && nMates(u) != u)
+          true
+        else if (hUnionVDiff.contains(mateOfU) && hUnionVDiff.contains(mateOfV) && !h.contains(VertexPair(mateOfU, mateOfV)))
+          true
+        else
+          false
+      }
+    }
+
+    def getOneChild(i: Int, n: Node, nextDomain: List[Vertex]): Node = {
+      val edge = edges(i)
+      val u = edge.u
+      val v = edge.v
+      val edgeSet = Set(u, v)
+      val nMates = n.mates
+      //val zero: Vertex = 0
+
+      val mateUpdate =
+        for {
+          (w, _) <- nMates
+          if nextDomain.contains(w)
+        } yield {
+          if (edgeSet.contains(w) && nMates(w) != w)
+            0
+          else if (nMates(w) == u)
+            nMates(v)
+          else if (nMates(w) == v)
+            nMates(u)
+          else
+            nMates(w)
+        }
+
+      val mateTuples = nextDomain zip mateUpdate
+      val mates = ListMap(mateTuples:_*)
+      Node(edges(i+1), mates)
+    }
 
     def decideOneChild(i: Int, n: Node): ZDD = {
-      if (rejectEdge(n, g.edges(i)))
-        zeroTerminal
-      else if (oneChildIsIncompatible(i, vertexSet, n, h, hSet, domain))
+      if (oneChildIsIncompatible(i, n))
         zeroTerminal
       else if (i+1 < iMax)
-        getOneChild(i, g, n, domain(i+1))
+        getOneChild(i, n, domain(i+1))
       else
         oneTerminal
     }
+    /*
+    End oneChild calculations
+     */
 
     def quickSolution(i: Int, n: Node): Boolean = {
       /*
@@ -349,16 +349,11 @@ object ZDD {
       false
 
     }
-
     println("h: "+ h)
 
     var counter = 0
     for (i <- edgeIndices; n <- frontier(i)) {
       counter += 1
-      /*
-      For both 0-child and 1-child when i == |E| + 1, they are assumed to lead to
-      one terminal
-       */
       t = _time //zeroChild time
       val zeroChild = decideZeroChild(i, n)
       zeroChildT += (_time - t)
@@ -378,10 +373,15 @@ object ZDD {
       n.hiChild = oneChild
 
       t = _time //front time
-      addNextFrontier(i+1, frontier, List(zeroChild, oneChild))
+      zeroChild match {
+        case n: Node => frontier(i+1) += n
+        case _ =>
+      }
+      oneChild match {
+        case n: Node => frontier(i+1) += n
+        case _ =>
+      }
       frontT += (_time - t)
-
-
     }
 
     println("setupT: "    +setupT)
@@ -392,55 +392,12 @@ object ZDD {
     println("sumT: "      +(zeroChildT.sum + oneChildTP.sum + oneChildT.sum + frontT.sum + setupT))
     println("total: "+(_time - startT))
     println("counter: "+counter)
-    //frontier.foreach(println)
-    //println(root)
-    root
+
+    assert(frontier(0).size == 1, "more than one root node, eh?")
+    // return the root of the zdd
+    frontier(0).head
   }
 }
-
-/*
-def countZDDOnePathsDF(root: ZDD): Int = {
-  val resultTable = scala.collection.mutable.HashMap[ZDD, Int]()
-
-  def countHelper(node: ZDD): Int = {
-    if (node == `zeroTerminal`) 0
-    else if (node == `oneTerminal`) 1
-    else if (resultTable.contains(node)) resultTable(node)
-    else {
-      node match {
-        case Node(p, lo, hi) =>
-          resultTable(node) = countHelper(lo) + countHelper(hi)
-          resultTable(node)
-      }
-    }
-  }
-  countHelper(root)
-}
-*/
-
-/*
-def buildZDD(zddList: List[Node]): Node = {
-  val mapZDD = Map(zddList map(node =>
-    (node.params, node)):_*)
-
-
-  val rootZDD = mapZDD(zddList(0).params)
-
-  def helperFunc(node: Node): Node = node match {
-    case Node(p: ELM, lo: ELM, hi: ELM) =>
-      Node(p, helperFunc(mapZDD(lo)), helperFunc(mapZDD(hi)))
-
-    case Node(p: ELM, terminal, hi: ELM) =>
-      Node(p, terminal, helperFunc(mapZDD(hi)))
-
-    case Node(p: ELM, lo: ELM, terminal) =>
-      Node(p, helperFunc(mapZDD(lo)), terminal)
-
-    case Node(p: ELM, _, _) => node
-  }
-  helperFunc(rootZDD)
-}
-*/
 
 /*
 def algorithmOne(g: Graph) = {
