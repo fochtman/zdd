@@ -106,15 +106,6 @@ object ZDD {
       (i, sortedDom) :: Nil ::: dom(i+1, tail)
   }
 
-  def getZeroChild(i: Int, g: Graph, n: Node, domain: Map[Int, List[Vertex]]): Node = {
-    val removal = (domain(i).toSet &~ domain(i+1).toSet).toList
-    val mates =
-      if (removal.isEmpty)
-        n.mates
-      else
-        n.mates - removal(0)
-    Node(g.edges(i+1), mates)
-  }
 
   def rejectEdge(n: Node, edge: Edge): Boolean = {
     if (n.mates(edge.u) == 0 || n.mates(edge.u) == edge.v)
@@ -304,6 +295,9 @@ object ZDD {
     val vertexSet = g.vertices.toSet
     val hSet = h.flatMap(p => List(p.v0, p.v1)).toSet
 
+    val iMax = edgeIndices.length
+    assert(iMax == domain.size, "domain.size != edgeIndices.length")
+
     val setupT = _time - t
 
     var zeroChildT = ListBuffer[Long]()
@@ -311,32 +305,47 @@ object ZDD {
     var oneChildT = ListBuffer[Long]()
     var frontT = ListBuffer[Long]()
 
+    def getZeroChild(i: Int, n: Node): Node = {
+      val removal = (domain(i).toSet &~ domain(i+1).toSet).toList
+      val mates =
+        if (removal.isEmpty)
+          n.mates
+        else
+          n.mates - removal(0)
+      Node(g.edges(i+1), mates)
+    }
+
+    def decideZeroChild(i: Int, n: Node): ZDD = {
+      if (zeroChildIsIncompatible (i, n, h, hSet, domain) )
+        zeroTerminal
+      else if (i + 1 < iMax)
+        getZeroChild (i, n)
+      else
+        oneTerminal
+    }
+
+    def decideOneChild(i: Int, n: Node): ZDD = {
+      if (rejectEdge(n, g.edges(i)))
+        zeroTerminal
+      else if (oneChildIsIncompatible(i, vertexSet, n, h, hSet, domain))
+        zeroTerminal
+      else if (i+1 < iMax)
+        getOneChild(i, g, n, domain(i+1))
+      else
+        oneTerminal
+    }
+
     def quickSolution(i: Int, n: Node): Boolean = {
       /*
-      val skip =
-      for {
-        u <- domain(i)
-        v <- g.vertices
-        if u != v
-        if n.mates(u) == v
-        if h.contains(VertexPair(u,v))
-      } yield {
-        println(u, v, n.mates(u))
-        //if (u != v && n.mates(u) == v && h.contains(VertexPair(u, v))) return true
-        true
-      }
-
-      if (skip.isEmpty) false
-      else true
-      */
-
       println(n)
       val v = n.edgeLabel.v
-      for (u <- domain(i+1)) { //}; v <- g.vertices) {
+      //for (u <- domain(i+1)) { //}; v <- g.vertices) {
+      for (u <- domain(i)) { //}; v <- g.vertices) {
         println(u, v, n.mates(u))
         if (u != v && n.mates(u) == v && h.contains(VertexPair(u, v))) return true
-        //else if (u != v && n.mates(u) != u && h.contains(VertexPair(n.mates(u), v))) return true
+        else if (u != v && n.mates(u) != u && h.contains(VertexPair(n.mates(u), v))) return true
       }
+      */
       false
 
     }
@@ -351,51 +360,13 @@ object ZDD {
       one terminal
        */
       t = _time //zeroChild time
-      val zeroChildPossibility =
-        if (zeroChildIsIncompatible(i, n, h, hSet, domain))
-          zeroTerminal
-        else if (i+1 < edgeIndices.length)
-          getZeroChild(i, g, n, domain)
-        else
-          oneTerminal
+      val zeroChild = decideZeroChild(i, n)
       zeroChildT += (_time - t)
 
       t = _time //oneChildP time
-      val oneChildPossibility =
-        if (rejectEdge(n, g.edges(i)))
-          zeroTerminal
-        else if (oneChildIsIncompatible(i, vertexSet, n, h, hSet, domain))
-          zeroTerminal
-        else if (i+1 < edgeIndices.length)
-          getOneChild(i, g, n, domain(i+1))
-        else
-          oneTerminal
+      val oneChild = decideOneChild(i, n)
       oneChildTP += (_time - t)
 
-      val zeroChild = zeroChildPossibility
-      /*
-        if (i+1 < domain.size && quickSolution(i, n) && zeroChildPossibility != oneTerminal) {
-          println("HERE0")
-          oneTerminal
-        }
-        else
-          zeroChildPossibility
-
-      println()
-      */
-
-      t = _time //oneChild time
-      val oneChild =
-        if (i+1 < domain.size && quickSolution(i, n) && oneChildPossibility != oneTerminal) {
-          println("HERE1")
-          oneTerminal
-        }
-        else
-          oneChildPossibility
-
-      oneChildT += (_time - t)
-
-      t = _time
       /*
       println("Frontier size: "+frontier(i).size)
       println("nextFrontier: "+ frontier(i))
@@ -406,12 +377,10 @@ object ZDD {
       n.loChild = zeroChild
       n.hiChild = oneChild
 
+      t = _time //front time
       addNextFrontier(i+1, frontier, List(zeroChild, oneChild))
       frontT += (_time - t)
 
-      println("zero: "+zeroChild)
-      println("one: "+oneChild)
-      println()
 
     }
 
@@ -424,7 +393,7 @@ object ZDD {
     println("total: "+(_time - startT))
     println("counter: "+counter)
     //frontier.foreach(println)
-    println(root)
+    //println(root)
     root
   }
 }
