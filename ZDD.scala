@@ -9,36 +9,36 @@ object ZDD {
   trait ZDD {
     def edgeLabel: Edge
     def mates: Map[Vertex, Vertex]
-    def loChild: ZDD
-    def hiChild: ZDD
+    def zeroChild: ZDD
+    def oneChild: ZDD
   }
 
   object zeroTerminal extends ZDD {
     def edgeLabel = throw new NoSuchElementException("zeroTerminal.edgeLabel")
     def mates = throw new NoSuchElementException("zeroTerminal.mates")
-    def loChild = throw new NoSuchElementException("zeroTerminal.loChild")
-    def hiChild = throw new NoSuchElementException("zeroTerminal.hiChild")
+    def zeroChild = throw new NoSuchElementException("zeroTerminal.zeroChild")
+    def oneChild = throw new NoSuchElementException("zeroTerminal.oneChild")
     override def toString = "0Term"
   }
 
   object oneTerminal extends ZDD {
     def edgeLabel = throw new NoSuchElementException("oneTerminal.edgeLabel")
     def mates = throw new NoSuchElementException("oneTerminal.mates")
-    def loChild = throw new NoSuchElementException("oneTerminal.loChild")
-    def hiChild = throw new NoSuchElementException("oneTerminal.hiChild")
+    def zeroChild = throw new NoSuchElementException("oneTerminal.zeroChild")
+    def oneChild = throw new NoSuchElementException("oneTerminal.oneChild")
     override def toString = "1Term"
   }
 
   class Node(
     val edgeLabel: Edge,
     val mates: Map[Vertex, Vertex],
-    var loChild: ZDD,
-    var hiChild: ZDD
+    var zeroChild: ZDD,
+    var oneChild: ZDD
 ) extends ZDD {
 
     def isEmpty: Boolean = {
-      if (loChild == null) true
-      else if (hiChild == null) true
+      if (zeroChild == null) true
+      else if (oneChild == null) true
       else false
     }
 
@@ -46,8 +46,8 @@ object ZDD {
 
     val _1: Edge = edgeLabel
     val _2: Map[Vertex, Vertex] = mates
-    def _3: ZDD = loChild
-    def _4: ZDD = hiChild
+    def _3: ZDD = zeroChild
+    def _4: ZDD = oneChild
 
     override def equals(other: Any): Boolean = {
       other match {
@@ -68,12 +68,13 @@ object ZDD {
       ) + mates.hashCode
     }
 
-    override def toString = "NODE_["+ edgeLabel +"]("+ mates +") lo("+ loChild +") hi("+ hiChild +")]__"
+    override def toString = "NODE_["+ edgeLabel +"]("+ mates +") lo("+ zeroChild +") hi("+ oneChild +")]__"
   }
 
   object Node {
     def unapply(n: Node) = n
     def apply(e: Edge, m: Map[Vertex, Vertex]) = new Node(e, m, null, null)
+    //def apply(e: Edge, m: Map[Vertex, Vertex]) = new Node(e, m, zeroTerminal, zeroTerminal)
   }
 
   def setupDomain(i: Int, edges: List[Edge]): Map[Int, List[Vertex]] = {
@@ -98,6 +99,50 @@ object ZDD {
       frontier(i) = Set())
     frontier
   }
+
+  def verifyEqualityContract(root0: Node): Unit = {
+    if (!root0.equals(null)) {
+      val root1 = root0
+      val root2 = root1
+
+      if (root2.zeroChild != null) {
+        val rootZeroChild = root2.zeroChild
+        assert(!rootZeroChild.equals(root0), "class Node equality is borked")
+      }
+
+      // Checking equivalence relation for class Node by testing of the overriden equals method
+      assert(root0.equals(root0), "class Node is not reflexive!")
+      assert(root0.equals(root1) && root1.equals(root0), "class Node is not symmetric!")
+      assert(root0.equals(root1) && root1.equals(root2) && root0.equals(root2), "class Node is not transitive!")
+      // naively assuming that consistency is captured with the above three tests
+      assert(!root0.equals(null), "class Node cannot differentiate between non-null and null values!")
+
+
+      // Checking hashCode implementation
+      assert(root0.hashCode == root1.hashCode, "class Node violates hashCode contract!")
+
+      root0.zeroChild match {
+        case child: Node => verifyEqualityContract(child)
+        case _ =>
+      }
+      root0.oneChild match {
+        case child: Node => verifyEqualityContract(child)
+        case _ =>
+      }
+    }
+
+  }
+ /*
+  def prettyPrintZDD(root: Node): Unit = {
+    var inc = 0
+    var zddNodeStrs = (zddList map(_.toString)).mkString("\n")
+    for (p <- zddList) {
+      zddNodeStrs = zddNodeStrs.replaceAllLiterally(p.params.toString, inc.toString)
+      inc += 1
+    }
+    println(zddNodeStrs)
+  }
+  */
 
   def enumZDDValidPaths(root: Node): ListBuffer[ListBuffer[Byte]] = {
     val z: Byte = 0
@@ -126,6 +171,8 @@ object ZDD {
 
       case Node(_, _, `zeroTerminal`, `zeroTerminal`) =>
 
+      case Node(_, _, null, null) =>
+
       case Node(_, _, `zeroTerminal`, `oneTerminal`) =>
         (path += o) +=: pathBuffer
 
@@ -151,12 +198,14 @@ object ZDD {
     var t = _time
 
     val edges = g.edges
+    val vertices = g.vertices
+
     val domain = setupDomain(0, edges)
     val frontier = setupFrontier(g, domain)
 
     // collections which are used frequently
     val edgeIndices = edges.indices.toList
-    val vertexSet = g.vertices.toSet
+    val vertexSet = vertices.toSet
     val hSet = h.flatMap(p => List(p.v0, p.v1)).toSet
 
     val iMax = edgeIndices.length
@@ -167,9 +216,7 @@ object ZDD {
     val setupT = _time - t
 
     var zeroChildT = ListBuffer[Long]()
-    var oneChildTP = ListBuffer[Long]()
     var oneChildT = ListBuffer[Long]()
-    var frontT = ListBuffer[Long]()
 
     /*
     Start zeroChild calculations
@@ -231,14 +278,19 @@ object ZDD {
           n.mates
         else
           n.mates - removal(0)
-      Node(edges(i+1), mates)
+      //Node(edges(i+1), mates)
+      val node = Node(edges(i+1), mates)
+      frontier(i+1) += node
+      node
     }
 
     def decideZeroChild(i: Int, n: Node): ZDD = {
-      if (zeroChildIsIncompatible (i, n) )
+      if (zeroChildIsIncompatible(i, n))
         zeroTerminal
-      else if (i + 1 < iMax)
-        getZeroChild (i, n)
+      //else if (i+1 < iMax && quickSolution(i+1, n))
+      //  oneTerminal
+      else if (i+1 < iMax)
+        getZeroChild(i, n)
       else
         oneTerminal
     }
@@ -320,12 +372,16 @@ object ZDD {
 
       val mateTuples = nextDomain zip mateUpdate
       val mates = ListMap(mateTuples:_*)
-      Node(edges(i+1), mates)
+      val node = Node(edges(i+1), mates)
+      frontier(i+1) += node
+      node
     }
 
     def decideOneChild(i: Int, n: Node): ZDD = {
       if (oneChildIsIncompatible(i, n))
         zeroTerminal
+      //else if (i+1 < iMax && quickSolution(i+1, n))
+      //  oneTerminal
       else if (i+1 < iMax)
         getOneChild(i, n, domain(i+1))
       else
@@ -336,16 +392,18 @@ object ZDD {
      */
 
     def quickSolution(i: Int, n: Node): Boolean = {
-      /*
-      println(n)
+
+      val nMates = n.mates
       val v = n.edgeLabel.v
-      //for (u <- domain(i+1)) { //}; v <- g.vertices) {
-      for (u <- domain(i)) { //}; v <- g.vertices) {
-        println(u, v, n.mates(u))
-        if (u != v && n.mates(u) == v && h.contains(VertexPair(u, v))) return true
-        else if (u != v && n.mates(u) != u && h.contains(VertexPair(n.mates(u), v))) return true
+      /*
+      if v is in an h vertexPair then...
+       */
+      //println(n.edgeLabel, nMates)
+      for (u <- domain(i)) { //}; v <- vertices) {
+        //println(u, v, n.mates(u))
+        if (u != v && nMates(u) == v && h.contains(VertexPair(u, v))) return true
+        //else if (u != v && n.mates(u) != u && h.contains(VertexPair(n.mates(u), v))) return true
       }
-      */
       false
 
     }
@@ -354,46 +412,37 @@ object ZDD {
     var counter = 0
     for (i <- edgeIndices; n <- frontier(i)) {
       counter += 1
+
       t = _time //zeroChild time
-      val zeroChild = decideZeroChild(i, n)
+      n.zeroChild = decideZeroChild(i, n)
       zeroChildT += (_time - t)
 
       t = _time //oneChildP time
-      val oneChild = decideOneChild(i, n)
-      oneChildTP += (_time - t)
+      n.oneChild = decideOneChild(i, n)
+      oneChildT += (_time - t)
 
       /*
       println("Frontier size: "+frontier(i).size)
       println("nextFrontier: "+ frontier(i))
-      println("zero: "+zeroChild)
-      println("one: "+oneChild)
+      println("zero: "+n.zeroChild)
+      println("one: "+n.oneChild)
       println()
       */
-      n.loChild = zeroChild
-      n.hiChild = oneChild
 
-      t = _time //front time
-      zeroChild match {
-        case n: Node => frontier(i+1) += n
-        case _ =>
-      }
-      oneChild match {
-        case n: Node => frontier(i+1) += n
-        case _ =>
-      }
-      frontT += (_time - t)
+
     }
 
     println("setupT: "    +setupT)
     println("zeroChildT: "+zeroChildT.sum)
-    println("oneChildTP: "+oneChildTP.sum)
     println("oneChildT: " +oneChildT.sum)
-    println("frontT: "    +frontT.sum)
-    println("sumT: "      +(zeroChildT.sum + oneChildTP.sum + oneChildT.sum + frontT.sum + setupT))
+    println("sumT: "      +(zeroChildT.sum + oneChildT.sum + setupT))
     println("total: "+(_time - startT))
     println("counter: "+counter)
 
     assert(frontier(0).size == 1, "more than one root node, eh?")
+
+    verifyEqualityContract(frontier(0).head)
+
     // return the root of the zdd
     frontier(0).head
   }

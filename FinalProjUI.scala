@@ -58,14 +58,14 @@ object FinalProjUI  extends SimpleSwingApplication {
               System.gc()
               var newHeight = height.selection.item + 1
               var newWidth  = width.selection.item + 1
-              visualization.canvas.updateGraphDim(newHeight, newWidth)
+              gridVisualization.canvas.updateGraphDim(newHeight, newWidth)
               if (mutex.selected.get.text == "one")
-                visualization.canvas.collectPathEdges(1)
+                gridVisualization.canvas.collectPathEdges(1)
               else if (mutex.selected.get.text == "Numberlink Solver")
-                visualization.canvas.collectPathEdges(2)
+                gridVisualization.canvas.collectPathEdges(2)
 
-              visualization.slider.max = visualization.canvas.pathEdges.length - 1
-              visualization.slider.value = 0
+              gridVisualization.slider.max = gridVisualization.canvas.pathEdges.length - 1
+              gridVisualization.slider.value = 0
           }
         }
 
@@ -74,8 +74,8 @@ object FinalProjUI  extends SimpleSwingApplication {
         }
         pages += new Page("Parameters", parameters)
 
-        lazy val visualization = new BorderPanel {
-          val canvas = new Canvas {
+        lazy val gridVisualization = new BorderPanel {
+          val canvas = new GridGraphCanvas {
             preferredSize = new Dimension(640, 640)
           }
           object slider extends Slider {
@@ -96,7 +96,16 @@ object FinalProjUI  extends SimpleSwingApplication {
                 canvas.changePath(slider.value)
           }
         }
-        pages += new Page("Visualization", visualization)
+        pages += new Page("Grid Visualization", gridVisualization)
+
+        val DAGVisualization = new ScrollPane {
+          val canvas = new DAGCanvas {
+            preferredSize = new Dimension(640, 640)
+          }
+          contents = canvas
+        }
+        pages += new Page("DAG Visualization", DAGVisualization)
+
       }
       layout(tabs) = Center
     }
@@ -111,10 +120,12 @@ object FinalProjUI  extends SimpleSwingApplication {
   }
 }
 
-class Canvas extends Panel {
+class GridGraphCanvas extends Panel {
+
   var pathEdges = ListBuffer[ListBuffer[Byte]]()
   var currentPathCoords = List[((Int, Int), (Int, Int))]()
 
+  // the height and width of the grid squares
   private val jump = 64
 
   // perhaps make this apart of a companion object to the canvas class
@@ -205,8 +216,8 @@ class Canvas extends Panel {
       val ggV = gridGraph.graph.vertices
       val h = List(VertexPair(ggV(0), ggV.last))
       val zdd = time (algorithmTwo(gridGraph.graph, h), "Algo2 =>")
-      pathEdges = time (enumZDDValidPaths(zdd), "Path finding =>\t")
-      println("Algo2 Number of valid paths: "+ pathEdges.length +"\n")
+      //pathEdges = time (enumZDDValidPaths(zdd), "Path finding =>\t")
+      //println("Algo2 Number of valid paths: "+ pathEdges.length +"\n")
 
     case 2 =>
       val ggV = gridGraph.graph.vertices
@@ -216,6 +227,24 @@ class Canvas extends Panel {
       println("Number of valid paths: "+ pathEdges.length +"\n")
 
   }
+}
+
+class DAGCanvas extends Panel {
+
+  case class Edge(x0: Int, y0: Int, x1: Int, y1: Int)
+  case class Node(x: Int, y: Int, width: Int, height: Int, lo: Node, hi: Node) {
+    lazy val loEdge = Edge(x, y, lo.x, lo.y)
+    lazy val hiEdge = Edge(x, y, hi.x, hi.y)
+  }
+
+  
+
+  def collectNodes(n: Node): List[Node] = {
+    n match {
+
+    }
+  }
+
 }
 
 object zorn  {
