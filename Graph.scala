@@ -18,7 +18,7 @@ object Graph {
     else false
   }
 
-  class GridGraph(m: Int, n: Int) {
+  case class GridGraph(m: Int, n: Int) {
     val rowNum = m
     val colNum = n
     val graph = buildGridGraph(m, n)
