@@ -379,44 +379,60 @@ class DAGCanvas extends Panel {
     npl
   }
 
-  def collectDAGEdges(root: DAG, zero: DAG, one: DAG): List[DAGEdge] = {
+  def collectDAGEdges(root: DAG, zero: DAG, one: DAG, npl: HashMap[Int, Int]): List[DAGLeaf] = {
 
     val half = nodeWH / 2
     val nodeCenter = (n: DAG) => (n.x + half, n.y + half)
 
-    def helper(n: ZDD, x:Int, y: Int): List[DAGEdge] = {
+    def buildNodeCore(i: Int): DAGLeaf = {
+      val x = npl(i)
+      npl(i) -= 1
+      DAGLeaf(x*fullJump, i*fullJump, nodeWH, nodeWH)
+    }
+
+    def helper(n: ZDD, i: Int): List[DAGLeaf] = {
       n match {
+        case Node(_, _, lo: Node, hi: Node) =>
+          val hiNode = buildNodeCore(i)
+          val loNode = buildNodeCore(i)
+
+          /*
+          Note!! The issue with algorithmTwo seems to be with getting the lo child
+           */
+          loNode :: hiNode :: helper(hi, i+1) //::: helper(lo, i+1)
+
         case Node(_, _, `zeroTerminal`, hi: Node) =>
-          npl(i) += 1
-          helper(hi, i+1)
+          val hiNode = buildNodeCore(i)
+          hiNode :: helper(hi, i+1)
 
         case Node(_, _, `oneTerminal`, hi: Node) =>
-          npl(i) += 1
-          helper(hi, i+1)
+          val hiNode = buildNodeCore(i)
+          hiNode :: helper(hi, i+1)
 
         case Node(_, _, lo: Node, `zeroTerminal`) =>
-          npl(i) += 1
-          helper(lo, i+1)
+          val loNode = buildNodeCore(i)
+          loNode :: helper(lo, i+1)
 
         case Node(_, _, lo: Node, `oneTerminal`) =>
-          npl(i) += 1
-          helper(lo, i+1)
+          val loNode = buildNodeCore(i)
+          loNode :: helper(lo, i+1)
 
         case Node(_, _, `zeroTerminal`, `zeroTerminal`) =>
-          npl(i) += 1
+          Nil
 
         case Node(_, _, null, null) =>
-          npl(i) += 1
+          Nil
 
         case Node(_, _, `zeroTerminal`, `oneTerminal`) =>
-          npl(i) += 1
+          Nil
 
         case Node(_, _, `oneTerminal`, `zeroTerminal`) =>
-          npl(i) += 1
+          Nil
 
         case Node(_, _, `oneTerminal`, `oneTerminal`) =>
-          npl(i) += 1
+          Nil
 
+        /*
         case Node(_, _, w, h, lo: DAG, hi: DAG) =>
           val parent = nodeCenter(n)
 
@@ -428,16 +444,14 @@ class DAGCanvas extends Panel {
 
           helper(lo)
           helper(hi)
-
-        case _ =>
+        */
+        //case _ =>
       }
     }
 
-    helper(node)
+    helper(vis.root, 2)
   }
 
-
-  //def drawDAG(n: Node): Unit = {
   def repaintDAG(): Unit = {
     val depth = vis.grid.graph.edges.length + 1
     val numNodesAtLevel = getNodesPerLevel(depth)
@@ -447,16 +461,18 @@ class DAGCanvas extends Panel {
     println(max)
 
     val center = max * fullJump // 2
-    val root = DAGLeaf(center, jump, nodeWH, nodeWH)
-
     val bottom = (depth + 1) * fullJump
+
+    val root = DAGLeaf(center, jump, nodeWH, nodeWH)
     val zero = DAGLeaf(center - fullJump, bottom, nodeWH, nodeWH)
     val one = DAGLeaf(center + fullJump, bottom, nodeWH, nodeWH)
 
-    DAGNodes = List(root, zero, one)
+    //DAGNodes = List(root, zero, one)
 
     //DAGEdges =
-    //DAGEdges = collectDAGEdges(root, zero, one)
+    DAGNodes = root :: zero :: one :: Nil ::: collectDAGEdges(root, zero, one, numNodesAtLevel)
+    println("DAGNodes: ")
+    DAGNodes.foreach(println)
     // gather number of nodes per level
     //currentDAG = List(DAGNode(startX, startY, nodeWH, nodeWH, DAGLeaf(startX - jump, startY + jump, nodeWH, nodeWH), DAGLeaf(startX + jump, startY + jump, nodeWH, nodeWH)))
     repaint()
@@ -465,13 +481,11 @@ class DAGCanvas extends Panel {
 
 object stroke {
   val four = new BasicStroke(4)
-  val eight = new BasicStroke(8)
-  val sixteen = new BasicStroke(16)
-
-  val roundSixteen = new BasicStroke(16, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND)
-
   val strokePattern = Array(8.0f)
   val fourDashed = new BasicStroke(4, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL, 1.0f, strokePattern, 0)
+  val eight = new BasicStroke(8)
+  val sixteen = new BasicStroke(16)
+  val roundSixteen = new BasicStroke(16, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND)
 }
 
 object zorn  {

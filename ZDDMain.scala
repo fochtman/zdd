@@ -36,7 +36,7 @@ object ZDDMain {
     val mates: Map[Vertex, Vertex],
     var zeroChild: ZDD,
     var oneChild: ZDD
-) extends ZDD {
+  ) extends ZDD {
 
     def isEmpty: Boolean = {
       if (zeroChild == null) true
@@ -76,7 +76,6 @@ object ZDDMain {
   object Node {
     def unapply(n: Node) = n
     def apply(e: Edge, m: Map[Vertex, Vertex]) = new Node(e, m, null, null)
-    //def apply(e: Edge, m: Map[Vertex, Vertex]) = new Node(e, m, zeroTerminal, zeroTerminal)
   }
 
   def setupDomain(i: Int, edges: List[Edge]): Map[Int, List[Vertex]] = {
@@ -134,17 +133,6 @@ object ZDDMain {
     }
 
   }
- /*
-  def prettyPrintZDD(root: Node): Unit = {
-    var inc = 0
-    var zddNodeStrs = (zddList map(_.toString)).mkString("\n")
-    for (p <- zddList) {
-      zddNodeStrs = zddNodeStrs.replaceAllLiterally(p.params.toString, inc.toString)
-      inc += 1
-    }
-    println(zddNodeStrs)
-  }
-  */
 
   def enumZDDValidPaths(root: Node): ListBuffer[ListBuffer[Byte]] = {
     val z: Byte = 0
@@ -280,10 +268,10 @@ object ZDDMain {
           n.mates
         else
           n.mates - removal(0)
-      //Node(edges(i+1), mates)
-      val node = Node(edges(i+1), mates)
-      frontier(i+1) += node
-      node
+
+      val zeroChild = Node(edges(i+1), mates)
+      frontier(i+1) += zeroChild
+      zeroChild
     }
 
     def decideZeroChild(i: Int, n: Node): ZDD = {
