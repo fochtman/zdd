@@ -1,10 +1,10 @@
 import Graph._
 import scala.annotation.tailrec
-import scala.collection.mutable.{ ListBuffer }
+import scala.collection.mutable.ListBuffer
 import collection.immutable.ListMap
 import System.{currentTimeMillis => _time}
 
-object ZDD {
+object ZDDMain {
 
   trait ZDD {
     def edgeLabel: Edge
@@ -13,7 +13,9 @@ object ZDD {
     def oneChild: ZDD
   }
 
-  object zeroTerminal extends ZDD {
+  abstract class Terminal
+
+  object zeroTerminal extends Terminal with ZDD {
     def edgeLabel = throw new NoSuchElementException("zeroTerminal.edgeLabel")
     def mates = throw new NoSuchElementException("zeroTerminal.mates")
     def zeroChild = throw new NoSuchElementException("zeroTerminal.zeroChild")
@@ -21,7 +23,7 @@ object ZDD {
     override def toString = "0Term"
   }
 
-  object oneTerminal extends ZDD {
+  object oneTerminal extends Terminal with ZDD {
     def edgeLabel = throw new NoSuchElementException("oneTerminal.edgeLabel")
     def mates = throw new NoSuchElementException("oneTerminal.mates")
     def zeroChild = throw new NoSuchElementException("oneTerminal.zeroChild")

@@ -5,17 +5,19 @@ import Swing._
 import BorderPanel.Position._
 import TabbedPane._
 
-import scala.collection.mutable.ListBuffer
+import scala.collection.mutable.{ ListBuffer, HashMap }
 import System.{currentTimeMillis => _time}
 
 import Graph._
-import ZDD._
+
+import ZDDMain._
+
 import BDD.{algoTwo, enumZDDValidPaths2}
 
 
 object FinalProjUI  extends SimpleSwingApplication {
   def top = new MainFrame {
-    title = "fun with zdds"
+    title = "fun with viss"
 
     contents = new BorderPanel {
 
@@ -56,35 +58,32 @@ object FinalProjUI  extends SimpleSwingApplication {
           listenTo(buildGrid)
           listenTo(buildDAG)
           reactions += {
-            case ButtonClicked(`buildGrid`) =>
-              /*
-              The ZDDs can get large (in the millions of nodes once 5 x 5 and up is selected)
-              to clean the memory as best as we can call System.gc()
-               */
+            case ButtonClicked(b) =>
+
               System.gc()
+              val newHeight = height.selection.item + 1
+              val newWidth  = width.selection.item + 1
+              vis.updateVis(newHeight, newWidth)
 
-              var newHeight = height.selection.item + 1
-              var newWidth  = width.selection.item + 1
-              gridVis.canvas.gridGraph = GridGraph(newHeight, newWidth)
+              b match {
+                case `buildGrid` =>
+                  mutex.selected.get.text match {
+                    case "one" =>
+                      gridVis.canvas.collectPathEdges(1)
+                    case "Numberlink Solver" =>
+                      gridVis.canvas.collectPathEdges(2)
+                  }
+                  gridVis.slider.max = gridVis.canvas.pathEdges.length - 1
+                  gridVis.slider.value = 0
 
-              mutex.selected.get.text match {
-                case "one" =>
-                  gridVis.canvas.collectPathEdges(1)
-                case "Numberlink Solver" =>
-                  gridVis.canvas.collectPathEdges(2)
+                case `buildDAG` =>
+                  mutex.selected.get.text match {
+                    case "one" =>
+                      DAGVis.canvas.repaintDAG()
+                    case "Numberlink Solver" =>
+                      DAGVis.canvas.repaintDAG()
+                  }
               }
-
-              gridVis.slider.max = gridVis.canvas.pathEdges.length - 1
-              gridVis.slider.value = 0
-
-            case ButtonClicked(`buildDAG`) =>
-              mutex.selected.get.text match {
-                case "one" =>
-                  DAGVis.canvas.repaintDAG()
-                case "Numberlink Solver" =>
-                  DAGVis.canvas.repaintDAG()
-              }
-
           }
         }
 
@@ -142,8 +141,17 @@ object FinalProjUI  extends SimpleSwingApplication {
   }
 }
 
-object ZDDBuilder {
+object vis {
+  var grid = GridGraph(2, 2)
 
+  var ggV: List[Graph.Vertex] = grid.graph.vertices
+  var h = List(VertexPair(ggV(0), ggV.last))
+  var root: ZDDMain.Node = algorithmTwo(grid.graph, h)
+
+  def updateVis(height: Int, width: Int) {
+    grid = GridGraph(height, width)
+    root = algorithmTwo(grid.graph, h)
+  }
 }
 
 class GridGraphCanvas(dim: java.awt.Dimension) extends Panel {
@@ -151,21 +159,17 @@ class GridGraphCanvas(dim: java.awt.Dimension) extends Panel {
   var pathEdges = ListBuffer[ListBuffer[Byte]]()
   var currentPathCoords = List[((Int, Int), (Int, Int))]()
 
-  private var currentCanvasHeight = dim.getHeight.toInt
-  private var currentCanvasWidth = dim.getWidth.toInt
 
   // the height and width of the grid squares
-  private val jump = currentCanvasHeight / 10
+  private val jump = dim.getHeight.toInt / 10
 
-  var gridGraph = new GridGraph(2, 2)
+  private var xOrigin = (size.width - (jump * (vis.grid.colNum - 1))) / 2
+  private var yOrigin = (size.height - (jump * (vis.grid.rowNum - 1))) / 2
 
-  private var xOrigin = (currentCanvasWidth - (jump * gridGraph.colNum-1)) / 2
-  private var yOrigin = (currentCanvasHeight - (jump * gridGraph.rowNum-1)) / 2
-
-  private var xMax = xOrigin + (gridGraph.colNum-1) * jump
+  private var xMax = xOrigin + (vis.grid.colNum-1) * jump
   private var xAxis = (Range(xOrigin, xMax) by jump).toList
 
-  private var yMax = yOrigin + (gridGraph.rowNum-1) * jump
+  private var yMax = yOrigin + (vis.grid.rowNum-1) * jump
   private var yAxis = (Range(yOrigin , yMax) by jump).toList
   /*
   The xAxis and yAxis contain points which correspond the to top
@@ -176,22 +180,17 @@ class GridGraphCanvas(dim: java.awt.Dimension) extends Panel {
   private var yPathAxis = yAxis ::: (yAxis.last + jump :: Nil)
 
   def updateGraphCanvasFields(): Unit = {
-    if (currentCanvasHeight != size.height || currentCanvasWidth != size.width) {
-      currentCanvasHeight = size.height
-      currentCanvasWidth = size.width
+    xOrigin = (size.width - (jump * (vis.grid.colNum - 1))) / 2
+    yOrigin = (size.height - (jump * (vis.grid.rowNum - 1))) / 2
 
-      xOrigin = (size.width - (jump * (gridGraph.colNum - 1))) / 2
-      yOrigin = (size.height - (jump * (gridGraph.rowNum - 1))) / 2
+    xMax = xOrigin + (vis.grid.colNum - 1) * jump
+    xAxis = (Range(xOrigin, xMax) by jump).toList
 
-      xMax = xOrigin + (gridGraph.colNum - 1) * jump
-      xAxis = (Range(xOrigin, xMax) by jump).toList
+    yMax = yOrigin + (vis.grid.rowNum - 1) * jump
+    yAxis = (Range(yOrigin, yMax) by jump).toList
 
-      yMax = yOrigin + (gridGraph.rowNum - 1) * jump
-      yAxis = (Range(yOrigin, yMax) by jump).toList
-
-      xPathAxis = xAxis ::: (xAxis.last + jump) :: Nil
-      yPathAxis = yAxis ::: (yAxis.last + jump) :: Nil
-    }
+    xPathAxis = xAxis ::: (xAxis.last + jump) :: Nil
+    yPathAxis = yAxis ::: (yAxis.last + jump) :: Nil
   }
 
 
@@ -227,10 +226,10 @@ class GridGraphCanvas(dim: java.awt.Dimension) extends Panel {
 
     val pathMap = byteStr.zipWithIndex filter (x =>
       x._1 == 1) map (index =>
-        gridGraph.graph.edges(index._2))
+        vis.grid.graph.edges(index._2))
 
     currentPathCoords = pathMap.toList map (edge =>
-      (gridGraph.vertexToCoord(edge.u), gridGraph.vertexToCoord(edge.v)))
+      (vis.grid.vertexToCoord(edge.u), vis.grid.vertexToCoord(edge.v)))
 
     repaint()
   }
@@ -245,18 +244,18 @@ class GridGraphCanvas(dim: java.awt.Dimension) extends Panel {
 
   def collectPathEdges(choice: Int): Unit = choice match {
     case 1 =>
-      val ggV = gridGraph.graph.vertices
+      val ggV: List[Graph.Vertex] = vis.grid.graph.vertices
       val h = List(VertexPair(ggV(0), ggV.last))
-      val zdd = time (algorithmTwo(gridGraph.graph, h), "Algo2 =>")
-      //pathEdges = time (enumZDDValidPaths(zdd), "Path finding =>\t")
+      val zddRoot: ZDDMain.Node = time (algorithmTwo(vis.grid.graph, h), "Algo2 =>")
+      //pathEdges = time (enumZDDValidPaths(vis), "Path finding =>\t")
       //println("Algo2 Number of valid paths: "+ pathEdges.length +"\n")
 
     case 2 =>
-      val ggV = gridGraph.graph.vertices
-      val h = List(VertexPair(ggV(0), ggV.last))
-      val zdd = time (algoTwo(gridGraph.graph, h), "Numberlink solver =>")
-      pathEdges = time (enumZDDValidPaths2(zdd), "Path finding =>\t")
-      println("Number of valid paths: "+ pathEdges.length +"\n")
+      //val ggV: List[Graph.Vertex] = vis.grid.graph.vertices
+      //val h = List(VertexPair(ggV(0), ggV.last))
+      //val zddRoot = time (algoTwo(vis.grid.graph, h), "Numberlink solver =>")
+      //pathEdges = time (enumZDDValidPaths2(vis.zddRoot), "Path finding =>\t")
+      //println("Number of valid paths: "+ pathEdges.length +"\n")
 
   }
 }
@@ -270,20 +269,25 @@ class DAGCanvas extends Panel {
     def height: Int
   }
 
-  //case class DAGEdge(x0: Int, y0: Int, x1: Int, y1: Int)
+  case class DAGEdge(x0: Int, y0: Int, x1: Int, y1: Int)
 
   case class DAGNode(x: Int, y: Int, width: Int, height: Int, lo: DAG, hi: DAG) extends DAG
 
   case class DAGLeaf(x: Int, y: Int, width: Int, height: Int) extends DAG
 
 
-  val nodeWH = 64
-  val jump = 128
-  val fullJump = 256
-  //val depth = g.edges.length + 1
+  val nodeWH = 8
+  val jump = nodeWH * 2
+  val fullJump = jump * 2
+
   var startX = fullJump
   var startY = jump
-  var currentDAG = List[DAGNode]()
+
+  var DAGEdges = List[DAGEdge]()
+  var DAGNodes = List[DAGLeaf]()
+
+  //val dummyLeaf = DAGLeaf(fullJump, fullJump, nodeWH, nodeWH)
+  //var currentDAG = List[DAG](dummyLeaf)
 
   def drawDAGEdges(g: Graphics2D, node: DAG): Unit = {
 
@@ -334,16 +338,127 @@ class DAGCanvas extends Panel {
     g.setColor(zorn.ivoryBlack)
 
     g.setStroke(stroke.four)
-    drawDAGEdges(g, currentDAG.head)
+    //drawDAGEdges(g, currentDAG.head)
 
     g.setStroke(stroke.four)
-    drawDAGNodes(g, currentDAG.head)
+    DAGNodes map (n =>
+      g.fillOval(n.x, n.y, n.width, n.height))
+    //drawDAGNodes(g, currentDAG.head)
 
   }
 
+  def getNodesPerLevel(depth: Int): scala.collection.mutable.HashMap[Int, Int] = {
+    val npl = scala.collection.mutable.HashMap[Int, Int]()
+    Range(1, depth) map (i =>
+      npl(i) = 0)
+
+    def helper(node: ZDD, i: Int): Unit = {
+      node match {
+        case Node(_,_, lo: Node, hi: Node) =>
+          npl(i) += 1
+          helper(lo, i+1)
+          helper(hi, i+1)
+
+        case Node(_, _, lo: Terminal, hi: Node) =>
+          npl(i) += 1
+          helper(hi, i+1)
+
+        case Node(_, _, lo: Node, hi: Terminal) =>
+          npl(i) += 1
+          helper(lo, i+1)
+
+        case Node(_, _, lo: Terminal, hi: Terminal) =>
+          npl(i) += 1
+
+        case _ =>
+      }
+    }
+
+    helper(vis.root, 1)
+    npl(depth) = 2
+    npl
+  }
+
+  def collectDAGEdges(root: DAG, zero: DAG, one: DAG): List[DAGEdge] = {
+
+    val half = nodeWH / 2
+    val nodeCenter = (n: DAG) => (n.x + half, n.y + half)
+
+    def helper(n: ZDD, x:Int, y: Int): List[DAGEdge] = {
+      n match {
+        case Node(_, _, `zeroTerminal`, hi: Node) =>
+          npl(i) += 1
+          helper(hi, i+1)
+
+        case Node(_, _, `oneTerminal`, hi: Node) =>
+          npl(i) += 1
+          helper(hi, i+1)
+
+        case Node(_, _, lo: Node, `zeroTerminal`) =>
+          npl(i) += 1
+          helper(lo, i+1)
+
+        case Node(_, _, lo: Node, `oneTerminal`) =>
+          npl(i) += 1
+          helper(lo, i+1)
+
+        case Node(_, _, `zeroTerminal`, `zeroTerminal`) =>
+          npl(i) += 1
+
+        case Node(_, _, null, null) =>
+          npl(i) += 1
+
+        case Node(_, _, `zeroTerminal`, `oneTerminal`) =>
+          npl(i) += 1
+
+        case Node(_, _, `oneTerminal`, `zeroTerminal`) =>
+          npl(i) += 1
+
+        case Node(_, _, `oneTerminal`, `oneTerminal`) =>
+          npl(i) += 1
+
+        case Node(_, _, w, h, lo: DAG, hi: DAG) =>
+          val parent = nodeCenter(n)
+
+          val leftChild = nodeCenter(lo)
+          g.drawLine(parent._1, parent._2, leftChild._1, leftChild._2)
+
+          val rightChild = nodeCenter(hi)
+          g.drawLine(parent._1, parent._2, rightChild._1, rightChild._2)
+
+          helper(lo)
+          helper(hi)
+
+        case _ =>
+      }
+    }
+
+    helper(node)
+  }
+
+
   //def drawDAG(n: Node): Unit = {
   def repaintDAG(): Unit = {
-    currentDAG = List(DAGNode(startX, startY, nodeWH, nodeWH, DAGLeaf(startX - jump, startY + jump, nodeWH, nodeWH), DAGLeaf(startX + jump, startY + jump, nodeWH, nodeWH)))
+    val depth = vis.grid.graph.edges.length + 1
+    val numNodesAtLevel = getNodesPerLevel(depth)
+    println(numNodesAtLevel)
+
+    val max = numNodesAtLevel.values.max
+    println(max)
+
+    val center = max * fullJump // 2
+    val root = DAGLeaf(center, jump, nodeWH, nodeWH)
+
+    val bottom = (depth + 1) * fullJump
+    val zero = DAGLeaf(center - fullJump, bottom, nodeWH, nodeWH)
+    val one = DAGLeaf(center + fullJump, bottom, nodeWH, nodeWH)
+
+    DAGNodes = List(root, zero, one)
+
+    //DAGEdges =
+    //DAGEdges = collectDAGEdges(root, zero, one)
+    // gather number of nodes per level
+    //currentDAG = List(DAGNode(startX, startY, nodeWH, nodeWH, DAGLeaf(startX - jump, startY + jump, nodeWH, nodeWH), DAGLeaf(startX + jump, startY + jump, nodeWH, nodeWH)))
     repaint()
   }
 }
@@ -380,5 +495,37 @@ object zorn  {
       new Color(f(i.getRed, j.getRed), f(i.getGreen, j.getGreen), f(i.getBlue, j.getBlue), 30)
     }
   }
-
 }
+
+/*
+case Node(_, _, `zeroTerminal`, hi: Node) =>
+  npl(i) += 1
+  helper(hi, i+1)
+
+case Node(_, _, `oneTerminal`, hi: Node) =>
+  npl(i) += 1
+  helper(hi, i+1)
+
+case Node(_, _, lo: Node, `zeroTerminal`) =>
+  npl(i) += 1
+  helper(lo, i+1)
+
+case Node(_, _, lo: Node, `oneTerminal`) =>
+  npl(i) += 1
+  helper(lo, i+1)
+
+case Node(_, _, `zeroTerminal`, `zeroTerminal`) =>
+  npl(i) += 1
+
+case Node(_, _, null, null) =>
+  npl(i) += 1
+
+case Node(_, _, `zeroTerminal`, `oneTerminal`) =>
+  npl(i) += 1
+
+case Node(_, _, `oneTerminal`, `zeroTerminal`) =>
+  npl(i) += 1
+
+case Node(_, _, `oneTerminal`, `oneTerminal`) =>
+  npl(i) += 1
+*/
