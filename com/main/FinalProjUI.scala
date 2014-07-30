@@ -1,23 +1,22 @@
-import java.awt.{RenderingHints, BasicStroke}
-import swing._
-import swing.event._
-import Swing._
-import BorderPanel.Position._
-import TabbedPane._
+package com.main
 
-import scala.collection.mutable.{ ListBuffer, HashMap }
-import System.{currentTimeMillis => _time}
+import java.awt.{BasicStroke, RenderingHints}
+import java.lang.System.{currentTimeMillis => _time}
 
-import Graph._
+import com.main.Graph._
+import com.main.ZDDMain._
 
-import ZDDMain._
-
-import BDD.{algoTwo, enumZDDValidPaths2}
+import scala.collection.mutable.{HashMap, ListBuffer}
+import scala.swing.BorderPanel.Position._
+import scala.swing.Swing._
+import scala.swing.TabbedPane._
+import scala.swing._
+import scala.swing.event._
 
 
 object FinalProjUI  extends SimpleSwingApplication {
   def top = new MainFrame {
-    title = "fun with viss"
+    title = "fun with vis"
 
     contents = new BorderPanel {
 

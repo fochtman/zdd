@@ -1,3 +1,5 @@
+package com.main
+
 object Graph {
 
   type Vertex = Int

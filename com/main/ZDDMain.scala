@@ -1,8 +1,10 @@
+package com.main
+
+import java.lang.System.{currentTimeMillis => _time}
 import Graph._
 import scala.annotation.tailrec
+import scala.collection.immutable.ListMap
 import scala.collection.mutable.ListBuffer
-import collection.immutable.ListMap
-import System.{currentTimeMillis => _time}
 
 object ZDDMain {
 
@@ -99,39 +101,6 @@ object ZDDMain {
     Range(1, g.edges.length) map (i =>
       frontier(i) = Set())
     frontier
-  }
-
-  def verifyEqualityContract(root0: Node): Unit = {
-    if (!root0.equals(null)) {
-      val root1 = root0
-      val root2 = root1
-
-      if (root2.zeroChild != null) {
-        val rootZeroChild = root2.zeroChild
-        assert(!rootZeroChild.equals(root0), "class Node equality is borked")
-      }
-
-      // Checking equivalence relation for class Node by testing of the overriden equals method
-      assert(root0.equals(root0), "class Node is not reflexive!")
-      assert(root0.equals(root1) && root1.equals(root0), "class Node is not symmetric!")
-      assert(root0.equals(root1) && root1.equals(root2) && root0.equals(root2), "class Node is not transitive!")
-      // naively assuming that consistency is captured with the above three tests
-      assert(!root0.equals(null), "class Node cannot differentiate between non-null and null values!")
-
-
-      // Checking hashCode implementation
-      assert(root0.hashCode == root1.hashCode, "class Node violates hashCode contract!")
-
-      root0.zeroChild match {
-        case child: Node => verifyEqualityContract(child)
-        case _ =>
-      }
-      root0.oneChild match {
-        case child: Node => verifyEqualityContract(child)
-        case _ =>
-      }
-    }
-
   }
 
   def enumZDDValidPaths(root: Node): ListBuffer[ListBuffer[Byte]] = {
@@ -429,10 +398,7 @@ object ZDDMain {
     println("total: "+(_time - startT))
     println("counter: "+counter)
 
-    assert(frontier(0).size == 1, "more than one root node, eh?")
-
-    verifyEqualityContract(frontier(0).head)
-
+    //assert(frontier(0).size == 1, "more than one root node, eh?")
     // return the root of the zdd
     frontier(0).head
   }
