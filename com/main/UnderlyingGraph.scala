@@ -1,6 +1,6 @@
 package com.main
 
-object Graph {
+object UnderlyingGraph {
 
   type Vertex = Int
 

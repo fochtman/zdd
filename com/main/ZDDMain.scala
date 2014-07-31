@@ -1,10 +1,10 @@
 package com.main
 
 import java.lang.System.{currentTimeMillis => _time}
-import Graph._
+import UnderlyingGraph._
 import scala.annotation.tailrec
 import scala.collection.immutable.ListMap
-import scala.collection.mutable.ListBuffer
+import scala.collection.mutable.{ListBuffer, Set => FrontierSet}
 
 object ZDDMain {
 
@@ -80,7 +80,7 @@ object ZDDMain {
     def apply(e: Edge, m: Map[Vertex, Vertex]) = new Node(e, m, null, null)
   }
 
-  def setupDomain(i: Int, edges: List[Edge]): Map[Int, List[Vertex]] = {
+  def setupDomain(edges: List[Edge]): Map[Int, List[Vertex]] = {
     // Helper function dom returns a List((i,List(vertex0,v1,...,vK),...,(i+?,List(vK-1,vK))
     def dom(i: Int, edges: List[Edge]): List[(Int, List[Vertex])] =
       edges match {
@@ -97,10 +97,59 @@ object ZDDMain {
   def setupFrontier(g: Graph, domain: Map[Int, List[Vertex]]) = {
     val rootMates: Map[Vertex, Vertex] = ListMap(domain(0) zip g.vertices:_*)
     val root = Node(g.edges(0), rootMates)
-    val frontier = scala.collection.mutable.HashMap[Int, Set[Node]](0 -> Set(root))
+    val frontier = scala.collection.mutable.HashMap[Int, FrontierSet[Node]](0 -> FrontierSet(root))
     Range(1, g.edges.length) map (i =>
-      frontier(i) = Set())
+      frontier(i) = FrontierSet[Node]())
     frontier
+  }
+
+  def restrictMates(mates: Map[Vertex, Vertex], nextDomain: List[Vertex]): Map[Vertex, Vertex] = {
+    if (mates.size == nextDomain.length)
+      mates
+    else
+      mates - nextDomain.head
+  }
+
+  def getNode(edge: Edge, nMates: Map[Vertex, Vertex], frontierSet: FrontierSet[Node]): Node = {
+    val newNode = Node(edge, nMates)
+
+    frontierSet.find(_ == newNode) match {
+      case Some(extantNode) => extantNode
+      case None =>
+        frontierSet += newNode
+        newNode
+    }
+  }
+
+  def rejectEdge(nMates: Map[Vertex, Vertex], edge: Edge): Boolean = {
+    val u = edge.u
+    val v = edge.v
+
+    if (Set(0, v).contains(nMates(u)))
+      true
+    else if (Set(0, u).contains(nMates(v)))
+      true
+    else
+      false
+  }
+
+  def mateUpdate(edge: Edge, nMates: Map[Vertex, Vertex]): Map[Vertex, Vertex] = {
+    val u = edge.u
+    val v = edge.v
+    val edgeSet = Set(u, v)
+
+    for {
+      (w, mate) <- nMates
+    } yield {
+      if (edgeSet.contains(w) && nMates(w) != w)
+        (w, 0)
+      else if (nMates(w) == u)
+        (w, nMates(v))
+      else if (nMates(w) == v)
+        (w, nMates(u))
+      else
+        (w, mate) //nMates(w)
+    }
   }
 
   def enumZDDValidPaths(root: Node): ListBuffer[ListBuffer[Byte]] = {
@@ -159,7 +208,7 @@ object ZDDMain {
     val edges = g.edges
     val vertices = g.vertices
 
-    val domain = setupDomain(0, edges)
+    val domain = setupDomain(edges)
     val frontier = setupFrontier(g, domain)
 
     // collections which are used frequently
@@ -176,6 +225,10 @@ object ZDDMain {
 
     var zeroChildT = ListBuffer[Long]()
     var oneChildT = ListBuffer[Long]()
+
+    println(g)
+    println(domain)
+    println(frontier)
 
     /*
     Start zeroChild calculations
@@ -312,7 +365,6 @@ object ZDDMain {
       val v = edge.v
       val edgeSet = Set(u, v)
       val nMates = n.mates
-      //val zero: Vertex = 0
 
       val mateUpdate =
         for {
@@ -405,7 +457,7 @@ object ZDDMain {
 }
 
 /*
-def algorithmOne(g: Graph) = {
+def algorithmOne(g: UnderlyingGraph) = {
   val domain = Map.empty ++ dom(0, g.edges)
   val frontier = setupFrontier(g, domain)
   val edgeIndices = g.edges.indices.toList
