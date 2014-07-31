@@ -5,6 +5,7 @@ import java.lang.System.{currentTimeMillis => _time}
 
 import com.main.UnderlyingGraph._
 import com.main.ZDDMain._
+import com.main.BDD.{algoTwo, enumZDDValidPaths2}
 
 import scala.collection.mutable.{HashMap, ListBuffer}
 import scala.swing.BorderPanel.Position._
@@ -118,7 +119,7 @@ object FinalProjUI  extends SimpleSwingApplication {
                 canvas.changePath(slider.value)
           }
         }
-        pages += new Page("Grid UnderlyingGraph", gridVis)
+        pages += new Page("Grid Graph", gridVis)
 
         lazy val DAGVis = new ScrollPane {
           val canvas = new DAGCanvas {
@@ -242,16 +243,23 @@ class GridGraphCanvas(dim: java.awt.Dimension) extends Panel {
 
   def collectPathEdges(choice: Int): Unit = choice match {
     case 1 =>
+      val ggV: List[UnderlyingGraph.Vertex] = vis.grid.graph.vertices
+      val h = List(VertexPair(ggV(0), ggV.last))
+      val zddRoot: BDD.Node = time (algoTwo(vis.grid.graph, h), "BDDAlgo2 =>")
+      pathEdges = time (enumZDDValidPaths2(zddRoot), "Path finding =>\t")
+      println("Algo2 Number of valid paths: "+ pathEdges.length +"\n")
+      /*
       println("Here in algo1...")
       val zddRoot: ZDDMain.Node = time (algorithmOne(vis.grid.graph), "Algo1 =>")
       pathEdges = time (enumZDDValidPaths(zddRoot), "Path finding =>\t")
       //pathEdges.foreach(println)
       println("Algo1 Number of valid paths: "+ pathEdges.length +"\n")
+      */
 
     case 2 =>
       val ggV: List[UnderlyingGraph.Vertex] = vis.grid.graph.vertices
       val h = List(VertexPair(ggV(0), ggV.last))
-      val zddRoot: ZDDMain.Node = time (algorithmTwo(vis.grid.graph, h), "Algo2 =>")
+      val zddRoot: ZDDMain.Node = time (numberLink(vis.grid.graph, h), "Algo2 =>")
       pathEdges = time (enumZDDValidPaths(zddRoot), "Path finding =>\t")
       println("Algo2 Number of valid paths: "+ pathEdges.length +"\n")
 

@@ -30,6 +30,7 @@ class ZDDSuite extends FeatureSpec with GivenWhenThen {
     }
   }
 
+  /*
   feature("getNode") {
     val g = GridGraph(2, 2).graph
     val domain = setupDomain(g.edges)
@@ -103,5 +104,6 @@ class ZDDSuite extends FeatureSpec with GivenWhenThen {
     }
 
   }
+  */
 
 }

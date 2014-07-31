@@ -69,10 +69,10 @@ object ZDDMain {
     override def hashCode: Int = {
       41 * (
         41 + edgeLabel.hashCode
-      ) + mates.hashCode
+        ) + mates.hashCode
     }
 
-    override def toString = "NODE_["+ edgeLabel +"]("+ mates +") lo("+ zeroChild +") hi("+ oneChild +")]__"
+    override def toString = "NODE_[" + edgeLabel + "](" + mates + ") lo(" + zeroChild + ") hi(" + oneChild + ")]__"
   }
 
   object Node {
@@ -106,7 +106,7 @@ object ZDDMain {
   }
 
   def setupFrontier(g: Graph, domain: Map[Int, List[Vertex]]) = {
-    val rootMates: Map[Vertex, Vertex] = ListMap(domain(0) zip g.vertices:_*)
+    val rootMates: Map[Vertex, Vertex] = ListMap(domain(0) zip g.vertices: _*)
     val root = Node(g.edges(0), rootMates)
     val frontier = scala.collection.mutable.HashMap[Int, FrontierSet[Node]](0 -> FrontierSet(root))
     Range(1, g.edges.length) map (i =>
@@ -114,54 +114,6 @@ object ZDDMain {
     frontier
   }
 
-  def restrictMates(nMates: Map[Vertex, Vertex], domainDifference: List[Vertex]): Map[Vertex, Vertex] = {
-    if (domainDifference.isEmpty)
-      nMates
-    else
-      nMates - domainDifference.head
-  }
-
-  def getNode(edge: Edge, nMates: Map[Vertex, Vertex], frontierSet: FrontierSet[Node]): Node = {
-    val newNode = Node(edge, nMates)
-
-    frontierSet.find(_ == newNode) match {
-      case Some(extantNode) => extantNode
-      case None =>
-        frontierSet += newNode
-        newNode
-    }
-  }
-
-  def rejectEdge(nMates: Map[Vertex, Vertex], edge: Edge): Boolean = {
-    val u = edge.u
-    val v = edge.v
-
-    if (Set(0, v).contains(nMates(u)))
-      true
-    else if (Set(0, u).contains(nMates(v)))
-      true
-    else
-      false
-  }
-
-  def mateUpdate(edge: Edge, nMates: Map[Vertex, Vertex]): Map[Vertex, Vertex] = {
-    val u = edge.u
-    val v = edge.v
-    val edgeSet = Set(u, v)
-
-    for {
-      (w, mate) <- nMates
-    } yield {
-      if (edgeSet.contains(w) && nMates(w) != w)
-        (w, 0)
-      else if (nMates(w) == u)
-        (w, nMates(v))
-      else if (nMates(w) == v)
-        (w, nMates(u))
-      else
-        (w, mate) //nMates(w)
-    }
-  }
 
   def enumZDDValidPaths(root: Node): ListBuffer[ListBuffer[Byte]] = {
     val z: Byte = 0
@@ -208,7 +160,7 @@ object ZDDMain {
     pathBuffer
   }
 
-  def algorithmTwo(g: Graph, h: List[VertexPair]): Node = {
+  def numberLink(g: Graph, h: List[VertexPair]): Node = {
     val startT = _time
     var t = _time
 
@@ -233,6 +185,61 @@ object ZDDMain {
 
     var zeroChildT = ListBuffer[Long]()
     var oneChildT = ListBuffer[Long]()
+
+
+    def getNode(i: Int, updateMates: Boolean, nMates: Map[Vertex, Vertex]): Node = {
+      val currentEdge = edges(i)
+      val nextEdge = edges(i + 1)
+      val u = currentEdge.u
+      val v = currentEdge.v
+      val frontierSet = frontier(i + 1)
+
+      val nextMates =
+        if (updateMates) {
+          val edgeSet = Set(u, v)
+
+          for {
+            (w, mate) <- nMates
+          } yield {
+            if (edgeSet.contains(w) && nMates(w) != w)
+              (w, 0)
+            else if (nMates(w) == u)
+              (w, nMates(v))
+            else if (nMates(w) == v)
+              (w, nMates(u))
+            else
+              (w, mate) //nMates(w)
+          }
+        } else {
+          nMates
+        }
+
+      val newNode =
+        if (domainDiff(i).isEmpty)
+          Node(nextEdge, nextMates)
+        else
+          Node(nextEdge, nextMates - domainDiff(i).head)
+
+      if (frontierSet.contains(newNode)) {
+        frontierSet.find(_ == newNode).get
+      } else {
+        frontierSet += newNode
+        newNode
+      }
+    }
+
+    def rejectEdge(nMates: Map[Vertex, Vertex], edge: Edge): Boolean = {
+      val u = edge.u
+      val v = edge.v
+
+      if (Set(0, v).contains(nMates(u)))
+        true
+      else if (Set(0, u).contains(nMates(v)))
+        true
+      else
+        false
+    }
+
 
     /*
     Start zeroChild calculations
@@ -290,11 +297,7 @@ object ZDDMain {
       if (zeroChildIsIncompatible(i, n))
         zeroTerminal
       else if (i + 1 < iMax) {
-        getNode(
-          edges(i + 1),
-          restrictMates(n.mates, domainDiff(i)),
-          frontier(i + 1)
-        )
+        getNode(i, false, n.mates)
       }
       else
         oneTerminal
@@ -342,14 +345,8 @@ object ZDDMain {
     def decideOneChild(i: Int, n: Node): ZDD = {
       if (oneChildIsIncompatible(i, n))
         zeroTerminal
-      else if(i + 1 < iMax)
-        getNode (
-          edges(i + 1),
-          restrictMates(
-            mateUpdate(edges(i), n.mates), domainDiff(i)
-          ),
-          frontier(i + 1)
-        )
+      else if (i + 1 < iMax)
+        getNode(i, true, n.mates)
       else
         oneTerminal
     }
@@ -371,18 +368,18 @@ object ZDDMain {
 
     }
 
-    println("setupT: "    +setupT)
-    println("zeroChildT: "+zeroChildT.sum)
-    println("oneChildT: " +oneChildT.sum)
-    println("sumT: "      +(zeroChildT.sum + oneChildT.sum + setupT))
-    println("total: "+(_time - startT))
-    println("counter: "+counter)
+    println("setupT: " + setupT)
+    println("zeroChildT: " + zeroChildT.sum)
+    println("oneChildT: " + oneChildT.sum)
+    println("sumT: " + (zeroChildT.sum + oneChildT.sum + setupT))
+    println("total: " + (_time - startT))
+    println("counter: " + counter)
 
     frontier(0).head
   }
+}
 
-
-
+  /*
   def algorithmOne(g: Graph): Node = {
     val edges = g.edges
 
@@ -424,5 +421,56 @@ object ZDDMain {
 
     frontier(0).head
   }
-}
+  */
+
+  /*
+  def restrictMates(nMates: Map[Vertex, Vertex], domainDifference: List[Vertex]): Map[Vertex, Vertex] = {
+    if (domainDifference.isEmpty)
+      nMates
+    else
+      nMates - domainDifference.head
+  }
+
+  def getNode(edge: Edge, nMates: Map[Vertex, Vertex], frontierSet: FrontierSet[Node]): Node = {
+    val newNode = Node(edge, nMates)
+
+    frontierSet.find(_ == newNode) match {
+      case Some(extantNode) => extantNode
+      case None =>
+        frontierSet += newNode
+        newNode
+    }
+  }
+
+  def rejectEdge(nMates: Map[Vertex, Vertex], edge: Edge): Boolean = {
+    val u = edge.u
+    val v = edge.v
+
+    if (Set(0, v).contains(nMates(u)))
+      true
+    else if (Set(0, u).contains(nMates(v)))
+      true
+    else
+      false
+  }
+
+  def mateUpdate(edge: Edge, nMates: Map[Vertex, Vertex]): Map[Vertex, Vertex] = {
+    val u = edge.u
+    val v = edge.v
+    val edgeSet = Set(u, v)
+
+    for {
+      (w, mate) <- nMates
+    } yield {
+      if (edgeSet.contains(w) && nMates(w) != w)
+        (w, 0)
+      else if (nMates(w) == u)
+        (w, nMates(v))
+      else if (nMates(w) == v)
+        (w, nMates(u))
+      else
+        (w, mate) //nMates(w)
+    }
+  }
+  */
 
