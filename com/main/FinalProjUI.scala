@@ -36,14 +36,12 @@ object FinalProjUI  extends SimpleSwingApplication {
           contents += gridSizeChoices
 
           val one = new RadioButton("one")
-          //val two = new RadioButton("Numberlink Solver")
-          //val mutex = new ButtonGroup(one, two)
-          val mutex = new ButtonGroup(one)
+          val two = new RadioButton("Numberlink Solver")
+          val mutex = new ButtonGroup(one, two)
           val algorithmSelection = new BoxPanel(Orientation.Vertical) {
             border = CompoundBorder(TitledBorder(EtchedBorder, "Algorithm"), EmptyBorder(5, 5, 5, 10))
             contents ++= mutex.buttons
-            //listenTo(one, two)
-            listenTo(one)
+            listenTo(one, two)
           }
           contents += algorithmSelection
 
@@ -64,14 +62,15 @@ object FinalProjUI  extends SimpleSwingApplication {
               System.gc()
               val newHeight = height.selection.item + 1
               val newWidth  = width.selection.item + 1
-              vis.updateVis(newHeight, newWidth)
 
               b match {
                 case `buildGrid` =>
                   mutex.selected.get.text match {
                     case "one" =>
+                      vis.updateVis(newHeight, newWidth, 1)
                       gridVis.canvas.collectPathEdges(1)
                     case "Numberlink Solver" =>
+                      vis.updateVis(newHeight, newWidth, 1)
                       gridVis.canvas.collectPathEdges(2)
                   }
                   gridVis.slider.max = gridVis.canvas.pathEdges.length - 1
@@ -99,7 +98,8 @@ object FinalProjUI  extends SimpleSwingApplication {
             preferredSize = dim
           }
 
-          object slider extends Slider {
+          //object slider extends Slider {
+          val slider = new Slider {
             min = 0
             max = 0
             majorTickSpacing = 1
@@ -147,11 +147,12 @@ object vis {
 
   var ggV: List[UnderlyingGraph.Vertex] = grid.graph.vertices
   var h = List(VertexPair(ggV(0), ggV.last))
-  var root: ZDDMain.Node = algorithmTwo(grid.graph, h)
+  //var root: ZDDMain.Node = algorithmTwo(grid.graph, h)
+  var root: ZDDMain.Node = null
 
-  def updateVis(height: Int, width: Int) {
+  def updateVis(height: Int, width: Int, choice: Int) {
     grid = GridGraph(height, width)
-    root = algorithmTwo(grid.graph, h)
+    //root = algorithmTwo(grid.graph, h)
   }
 }
 
@@ -218,10 +219,6 @@ class GridGraphCanvas(dim: java.awt.Dimension) extends Panel {
     }
   }
 
-  //def updateGraphDim(m: Int, n: Int): Unit = {
-    //gridGraph = new GridGraph(m, n)
-
-
   def changePath(sliderValue: Int): Unit = {
     val byteStr = pathEdges(sliderValue)
 
@@ -245,18 +242,18 @@ class GridGraphCanvas(dim: java.awt.Dimension) extends Panel {
 
   def collectPathEdges(choice: Int): Unit = choice match {
     case 1 =>
+      println("Here in algo1...")
+      val zddRoot: ZDDMain.Node = time (algorithmOne(vis.grid.graph), "Algo1 =>")
+      pathEdges = time (enumZDDValidPaths(zddRoot), "Path finding =>\t")
+      //pathEdges.foreach(println)
+      println("Algo1 Number of valid paths: "+ pathEdges.length +"\n")
+
+    case 2 =>
       val ggV: List[UnderlyingGraph.Vertex] = vis.grid.graph.vertices
       val h = List(VertexPair(ggV(0), ggV.last))
       val zddRoot: ZDDMain.Node = time (algorithmTwo(vis.grid.graph, h), "Algo2 =>")
       pathEdges = time (enumZDDValidPaths(zddRoot), "Path finding =>\t")
       println("Algo2 Number of valid paths: "+ pathEdges.length +"\n")
-
-    case _ =>
-      //val ggV: List[UnderlyingGraph.Vertex] = vis.grid.graph.vertices
-      //val h = List(VertexPair(ggV(0), ggV.last))
-      //val zddRoot = time (algoTwo(vis.grid.graph, h), "Numberlink solver =>")
-      //pathEdges = time (enumZDDValidPaths2(vis.zddRoot), "Path finding =>\t")
-      //println("Number of valid paths: "+ pathEdges.length +"\n")
 
   }
 }

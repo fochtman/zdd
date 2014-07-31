@@ -94,6 +94,17 @@ object ZDDMain {
     Map.empty ++ dom(0, edges)
   }
 
+  def domainDifferences(xs: List[List[Vertex]]): List[List[Vertex]] = {
+    xs match {
+      case Nil =>
+        Nil
+      case head :: Nil =>
+        head :: domainDifferences(Nil)
+      case head :: tail =>
+        (head diff tail.head) :: domainDifferences(tail)
+    }
+  }
+
   def setupFrontier(g: Graph, domain: Map[Int, List[Vertex]]) = {
     val rootMates: Map[Vertex, Vertex] = ListMap(domain(0) zip g.vertices:_*)
     val root = Node(g.edges(0), rootMates)
@@ -103,11 +114,11 @@ object ZDDMain {
     frontier
   }
 
-  def restrictMates(mates: Map[Vertex, Vertex], nextDomain: List[Vertex]): Map[Vertex, Vertex] = {
-    if (mates.size == nextDomain.length)
-      mates
+  def restrictMates(nMates: Map[Vertex, Vertex], domainDifference: List[Vertex]): Map[Vertex, Vertex] = {
+    if (domainDifference.isEmpty)
+      nMates
     else
-      mates - nextDomain.head
+      nMates - domainDifference.head
   }
 
   def getNode(edge: Edge, nMates: Map[Vertex, Vertex], frontierSet: FrontierSet[Node]): Node = {
@@ -197,38 +208,31 @@ object ZDDMain {
     pathBuffer
   }
 
-  /*
-  For both 0-child and 1-child when i == |E| + 1, they are assumed to lead to
-  one terminal
-   */
   def algorithmTwo(g: Graph, h: List[VertexPair]): Node = {
     val startT = _time
     var t = _time
 
-    val edges = g.edges
+    val edges = g.edges.toVector
     val vertices = g.vertices
 
-    val domain = setupDomain(edges)
+    val domain = setupDomain(g.edges)
     val frontier = setupFrontier(g, domain)
 
     // collections which are used frequently
     val edgeIndices = edges.indices.toList
     val vertexSet = vertices.toSet
     val hSet = h.flatMap(p => List(p.v0, p.v1)).toSet
+    val domainDiff = domainDifferences(domain.values.toList.sortBy(_.length).reverse).toVector
 
     val iMax = edgeIndices.length
     assert(iMax == domain.size, "domain.size != edgeIndices.length")
 
-    val hamiltonianPath = false
+    val hamiltonianPath = true
 
     val setupT = _time - t
 
     var zeroChildT = ListBuffer[Long]()
     var oneChildT = ListBuffer[Long]()
-
-    println(g)
-    println(domain)
-    println(frontier)
 
     /*
     Start zeroChild calculations
@@ -282,27 +286,16 @@ object ZDDMain {
       }
     }
 
-    def getZeroChild(i: Int, n: Node): Node = {
-      // could pre-calculate these domain differences
-      val removal = domain(i) diff domain(i+1)
-      val mates =
-        if (removal.isEmpty)
-          n.mates
-        else
-          n.mates - removal(0)
-
-      val zeroChild = Node(edges(i+1), mates)
-      frontier(i+1) += zeroChild
-      zeroChild
-    }
-
     def decideZeroChild(i: Int, n: Node): ZDD = {
       if (zeroChildIsIncompatible(i, n))
         zeroTerminal
-      //else if (i+1 < iMax && quickSolution(i+1, n))
-      //  oneTerminal
-      else if (i+1 < iMax)
-        getZeroChild(i, n)
+      else if (i + 1 < iMax) {
+        getNode(
+          edges(i + 1),
+          restrictMates(n.mates, domainDiff(i)),
+          frontier(i + 1)
+        )
+      }
       else
         oneTerminal
     }
@@ -314,19 +307,6 @@ object ZDDMain {
     Start oneChild calculations
      */
 
-    def rejectEdge(n: Node, edge: Edge): Boolean = {
-      val u = edge.u
-      val v = edge.v
-      val nMates = n.mates
-
-      if (nMates(u) == 0 || nMates(u) == v)
-        true
-      else if (nMates(v) == 0 || nMates(v) == u)
-        true
-      else
-        false
-    }
-
     /*
     if for some v that exists in n.edgeLabel diff domain(i+1) one of the following holds, the 0-child is incompatible:
       if (v exists in hSet && mate(v) == v)
@@ -335,7 +315,7 @@ object ZDDMain {
         then (m,i,0) is incompatible
    */
     def oneChildIsIncompatible(i: Int, n: Node): Boolean = {
-      if (rejectEdge(n, edges(i)))
+      if (rejectEdge(n.mates, edges(i)))
         true
       else {
         val nextDom =
@@ -359,66 +339,23 @@ object ZDDMain {
       }
     }
 
-    def getOneChild(i: Int, n: Node, nextDomain: List[Vertex]): Node = {
-      val edge = edges(i)
-      val u = edge.u
-      val v = edge.v
-      val edgeSet = Set(u, v)
-      val nMates = n.mates
-
-      val mateUpdate =
-        for {
-          (w, _) <- nMates
-          if nextDomain.contains(w)
-        } yield {
-          if (edgeSet.contains(w) && nMates(w) != w)
-            0
-          else if (nMates(w) == u)
-            nMates(v)
-          else if (nMates(w) == v)
-            nMates(u)
-          else
-            nMates(w)
-        }
-
-      val mateTuples = nextDomain zip mateUpdate
-      val mates = ListMap(mateTuples:_*)
-      val node = Node(edges(i+1), mates)
-      frontier(i+1) += node
-      node
-    }
-
     def decideOneChild(i: Int, n: Node): ZDD = {
       if (oneChildIsIncompatible(i, n))
         zeroTerminal
-      //else if (i+1 < iMax && quickSolution(i+1, n))
-      //  oneTerminal
-      else if (i+1 < iMax)
-        getOneChild(i, n, domain(i+1))
+      else if(i + 1 < iMax)
+        getNode (
+          edges(i + 1),
+          restrictMates(
+            mateUpdate(edges(i), n.mates), domainDiff(i)
+          ),
+          frontier(i + 1)
+        )
       else
         oneTerminal
     }
     /*
     End oneChild calculations
      */
-
-    def quickSolution(i: Int, n: Node): Boolean = {
-
-      val nMates = n.mates
-      val v = n.edgeLabel.v
-      /*
-      if v is in an h vertexPair then...
-       */
-      //println(n.edgeLabel, nMates)
-      for (u <- domain(i)) { //}; v <- vertices) {
-        //println(u, v, n.mates(u))
-        if (u != v && nMates(u) == v && h.contains(VertexPair(u, v))) return true
-        //else if (u != v && n.mates(u) != u && h.contains(VertexPair(n.mates(u), v))) return true
-      }
-      false
-
-    }
-    println("h: "+ h)
 
     var counter = 0
     for (i <- edgeIndices; n <- frontier(i)) {
@@ -432,15 +369,6 @@ object ZDDMain {
       n.oneChild = decideOneChild(i, n)
       oneChildT += (_time - t)
 
-      /*
-      println("Frontier size: "+frontier(i).size)
-      println("nextFrontier: "+ frontier(i))
-      println("zero: "+n.zeroChild)
-      println("one: "+n.oneChild)
-      println()
-      */
-
-
     }
 
     println("setupT: "    +setupT)
@@ -450,41 +378,51 @@ object ZDDMain {
     println("total: "+(_time - startT))
     println("counter: "+counter)
 
-    //assert(frontier(0).size == 1, "more than one root node, eh?")
-    // return the root of the zdd
+    frontier(0).head
+  }
+
+
+
+  def algorithmOne(g: Graph): Node = {
+    val edges = g.edges
+
+    val domain = setupDomain(edges)
+    val frontier = setupFrontier(g, domain)
+
+    val edgeIndices = g.edges.indices.toList
+    val iMax = edgeIndices.length
+
+    println(frontier)
+
+    for (i <- edgeIndices; n <- frontier(i)) {
+
+      n.zeroChild =
+        if (i + 1 < iMax) {
+          getNode (
+            edges(i + 1),
+            restrictMates(n.mates, domain(i) diff domain(i + 1)),
+            frontier(i + 1)
+          )
+        } else {
+          oneTerminal
+        }
+
+      n.oneChild =
+        if (rejectEdge(n.mates, edges(i)))
+          zeroTerminal
+        else if(i + 1 < iMax)
+          getNode (
+            edges(i + 1),
+            restrictMates(
+              mateUpdate(edges(i), n.mates), domain(i) diff domain(i + 1)
+            ),
+            frontier(i + 1)
+          )
+        else
+          oneTerminal
+    }
+
     frontier(0).head
   }
 }
 
-/*
-def algorithmOne(g: UnderlyingGraph) = {
-  val domain = Map.empty ++ dom(0, g.edges)
-  val frontier = setupFrontier(g, domain)
-  val edgeIndices = g.edges.indices.toList
-
-  val zddList: List[Node] =
-    for {
-      i <- edgeIndices
-      n <- frontier(i)
-    } yield {
-
-      val zeroChild =
-        if (i+1 < edgeIndices.length)
-          getZeroChild(i, g, n, domain)
-        else
-          oneTerminal
-
-      val oneChild =
-        if (rejectEdge(n, g.edges(i)))
-          zeroTerminal
-        else if (i+1 < edgeIndices.length)
-          getOneChild(i, g, n, domain)
-        else
-          oneTerminal
-
-      addNextFrontier(i+1, frontier, List(zeroChild, oneChild))
-      Node(n, zeroChild, oneChild)
-    }
-  buildZDD(zddList)
-}
-*/
