@@ -1,7 +1,7 @@
 package com.main
 
 import UnderlyingGraph._
-import scala.collection.mutable.{ListBuffer, Set => FrontierSet}
+import scala.collection.mutable.ListBuffer
 
 object T1TilePaths {
 
@@ -26,24 +26,9 @@ object T1TilePaths {
   }
   import Direction._
 
-  trait Square {
-    def north: Adherent
-    def east: Adherent
-    def south: Adherent
-    def west: Adherent
-  }
+  case class Tile(north: Adherent, east: Adherent, south: Adherent, west: Adherent) {
 
-  object terminalTile extends Square {
-    def north = throw new NoSuchElementException("terminalTile.north")
-    def east = throw new NoSuchElementException("terminalTile.east")
-    def south = throw new NoSuchElementException("terminalTile.south")
-    def west = throw new NoSuchElementException("terminalTile.west")
-    override def toString = "termTile"
-  }
-
-  case class Tile(north: Adherent, east: Adherent, south: Adherent, west: Adherent) extends Square {
-
-    def glueByEdge(dir: Direction): Adherent = {
+    def matchGlueFrom(dir: Direction): Adherent = {
       dir match {
         case `NORTH` => this.north
         case `EAST` => this.east
@@ -62,19 +47,12 @@ object T1TilePaths {
 
     def canBind(g: Adherent, dir: Direction): Boolean = {
       if (g == nullGlue) false
-      else if (glueByEdge(dir) == nullGlue) false
-      else if (glueByEdge(dir) == g) true
+      else if (matchGlueFrom(dir) == nullGlue) false
+      else if (matchGlueFrom(dir) == g) true
       else false
     }
   }
 
-
-  // northBucket = Map[Glue, Set[Tile]]
-  // iterate through tiles, grab glue nonNll glue types, put them into set
-  // each NESW bucket will have all of the glues as keys
-  // the sets for each bucket are built one at a time
-  // for the north bucket we want to organize tiles by which have southern glues that can
-  // match the key
   case class TileSet(tileSet: Set[Tile]) {
     val glueSet = (this.tileSet map (t => List(t.north, t.east, t.south, t.west))).flatten.toSet - nullGlue
 
@@ -83,7 +61,7 @@ object T1TilePaths {
     val southBucket = buildBucket(NORTH)
     val westBucket = buildBucket(EAST)
 
-    def masterBucket(dir: Direction, g: Glue): Set[Square] = {
+    def masterBucket(dir: Direction, g: Adherent): Set[Tile] = {
       dir match {
         case `NORTH` => northBucket(g)
         case `EAST` => eastBucket(g)
@@ -93,9 +71,9 @@ object T1TilePaths {
     }
 
     def buildBucket(dir: Direction) = {
-      val bucket = scala.collection.mutable.HashMap[Adherent, Set[Square]]()
+      val bucket = scala.collection.mutable.HashMap[Adherent, Set[Tile]]()
       for (g <- glueSet) {
-        bucket(g) = Set[Square]()
+        bucket(g) = Set[Tile]()
       }
 
       val bucketValues =
@@ -111,46 +89,64 @@ object T1TilePaths {
         bucket(i._1) += i._2
       }
 
-      for ((k, v) <- bucket) {
-        if (v.isEmpty)
-          bucket(k) += terminalTile
-      }
       bucket
     }
   }
+
+
   def tilePaths(h: List[VertexPair], paths: ListBuffer[ListBuffer[Byte]], g: GridGraph, alpha: TileSet): Unit = {
     val hEdges = g.horizontalEdges
     val vEdges = g.verticalEdges
 
-    val p = paths(0)
-
-    /*
-    this section will be in a loop
-     */
-    val tileFrontier = scala.collection.mutable.HashMap[Int, Set[Tile]](0 -> alpha.tileSet)
-    Range(1, p.length) map (i =>
-      tileFrontier(i) = Set[Tile]())
-
-    val pathEdgeIndices = (p.zipWithIndex filter (x => x._1 == 1)) map (y => y._2)
-    val pathSet = (pathEdgeIndices map (i => g.graph.edges(i)) map (e => Set(e.u, e.v))).toSet
-    //println(t)
-    //val pathMap = Map(t.indices zip t:_*)
-
     def directionVector(pathSet: Set[Set[Int]], start: Vertex): Vector[Direction] = {
-      def helper(ps: Set[Set[Int]], u: Vertex): Vector[Direction] = {
+      def helper(ps: Set[Set[Int]], u: Vertex): List[Direction] = {
         val uv = ps.filter(s => s.contains(u))
         assert(uv.size == 1)
         val v = (uv.head - u).head
-        edgeDirection(u, v) :: helper(ps - uv.head, v)
+
+        if (ps.size == 1)
+          edgeDirection(u, v) :: Nil
+        else
+          edgeDirection(u, v) :: helper(ps - uv.head, v)
       }
-      helper(pathSet, start)
+      helper(pathSet, start).toVector
     }
 
-    def edgeDirection(u: Vertex, v: Vertex): Direction = {
-      
+    def edgeDirection(v0: Vertex, v1: Vertex): Direction = {
+      val (edge, uv) =
+        if (v0 < v1)
+          (Edge(v0, v1), true)
+        else
+          (Edge(v1, v0), false)
+
+      if (vEdges.contains(edge) && !uv) NORTH
+      else if (hEdges.contains(edge) && uv) EAST
+      else if (vEdges.contains(edge) && uv) SOUTH
+      else if (hEdges.contains(edge) && !uv) WEST
+      else throw new NoSuchElementException("Edge direction malfunction")
     }
 
 
+    for (p <- paths) {
+      val pathEdgeIndices = (p.zipWithIndex filter (x => x._1 == 1)) map (y => y._2)
+      val pathSet = (pathEdgeIndices map (i => g.graph.edges(i)) map (e => Set(e.u, e.v))).toSet
+      val tileFrontier = scala.collection.mutable.HashMap[Int, Set[Tile]](0 -> alpha.tileSet)
+      (1 to pathEdgeIndices.length) map (i =>
+        tileFrontier(i) = Set[Tile]())
+
+      val directionForEdge = directionVector(pathSet, h.head.v0)
+
+      for (i <- Range(0, pathEdgeIndices.length); t <- tileFrontier(i)) {
+        if (tileFrontier isDefinedAt i + 1) {
+          val currentDir = directionForEdge(i)
+          val availableGlue = t.matchGlueFrom(currentDir)
+          if (availableGlue != nullGlue) {
+            val validTiles = alpha.masterBucket(currentDir, availableGlue)
+            tileFrontier(i + 1) ++= validTiles
+          }
+        }
+      }
+    }
   }
 
 

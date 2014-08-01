@@ -158,12 +158,14 @@ object FinalProjUI  extends SimpleSwingApplication {
     val wt = T1TilePaths.Glue(1)
     val dt = T1TilePaths.Glue(2)
     val ci = T1TilePaths.Glue(3)
+    val cc = T1TilePaths.Glue(4)
 
     val a = Tile(nullGlue, nullGlue, sq, wt)
-    val b = Tile(sq, ci, nullGlue, wt)
+    val b = Tile(sq, ci, nullGlue, nullGlue)
     val c = Tile(dt, nullGlue, nullGlue, ci)
     val d = Tile(nullGlue, wt, dt, nullGlue)
-    val alpha = TileSet(Set(a, b, c, d))
+    val e = Tile(cc, cc, cc, cc)
+    val alpha = TileSet(Set(a, b, c, d, e))
 
     val pathEdges = enumZDDValidPaths(numberLink(vis.grid.graph, vis.h))
 
