@@ -5,6 +5,7 @@ import java.lang.System.{currentTimeMillis => _time}
 
 import com.main.UnderlyingGraph._
 import com.main.ZDDMain._
+import com.main.T1TilePaths._
 import com.main.BDD.{algoTwo, enumZDDValidPaths2}
 
 import scala.collection.mutable.{HashMap, ListBuffer}
@@ -48,43 +49,52 @@ object FinalProjUI  extends SimpleSwingApplication {
 
           val buildGrid = new Button { text = "Grid" }
           val buildDAG = new Button { text = "DAG" }
+          val buildTileLink = new Button { text = "TileLink" }
           val buildChoices = new BoxPanel(Orientation.Vertical) {
             border = CompoundBorder(TitledBorder(EtchedBorder, "View ZDD on a... "), EmptyBorder(5, 5, 5, 10))
             contents += buildGrid
             contents += buildDAG
+            contents += buildTileLink
           }
           contents += buildChoices
 
           listenTo(buildGrid)
           listenTo(buildDAG)
+          listenTo(buildTileLink)
           reactions += {
-            case ButtonClicked(b) =>
-
+            case ButtonClicked(`buildGrid`) =>
               System.gc()
               val newHeight = height.selection.item + 1
               val newWidth  = width.selection.item + 1
-
-              b match {
-                case `buildGrid` =>
-                  mutex.selected.get.text match {
-                    case "one" =>
-                      vis.updateVis(newHeight, newWidth, 1)
-                      gridVis.canvas.collectPathEdges(1)
-                    case "Numberlink Solver" =>
-                      vis.updateVis(newHeight, newWidth, 1)
-                      gridVis.canvas.collectPathEdges(2)
-                  }
-                  gridVis.slider.max = gridVis.canvas.pathEdges.length - 1
-                  gridVis.slider.value = 0
-
-                case `buildDAG` =>
-                  mutex.selected.get.text match {
-                    case "one" =>
-                      DAGVis.canvas.repaintDAG()
-                    case "Numberlink Solver" =>
-                      DAGVis.canvas.repaintDAG()
-                  }
+              mutex.selected.get.text match {
+                case "one" =>
+                  vis.updateVis(newHeight, newWidth)
+                  gridVis.canvas.collectPathEdges(1)
+                case "Numberlink Solver" =>
+                  vis.updateVis(newHeight, newWidth)
+                  gridVis.canvas.collectPathEdges(2)
               }
+
+              gridVis.slider.max =
+                if (gridVis.canvas.pathEdges.length == 0) 0
+                //else if (gridVis.canvas.pathEdges.length == 1) 1
+                else gridVis.canvas.pathEdges.length - 1
+              gridVis.slider.value = 0
+
+            case ButtonClicked(`buildDAG`) =>
+              mutex.selected.get.text match {
+                case "one" =>
+                  DAGVis.canvas.repaintDAG()
+                case "Numberlink Solver" =>
+                  DAGVis.canvas.repaintDAG()
+              }
+
+            case ButtonClicked(`buildTileLink`) =>
+              System.gc()
+              val newHeight = height.selection.item + 1
+              val newWidth  = width.selection.item + 1
+              vis.updateVis(newHeight, newWidth)
+              tmpTileLink()
           }
         }
 
@@ -141,6 +151,25 @@ object FinalProjUI  extends SimpleSwingApplication {
       }
     }
   }
+
+  def tmpTileLink(): Unit = {
+    println("tmpTileLink")
+    val sq = T1TilePaths.Glue(0)
+    val wt = T1TilePaths.Glue(1)
+    val dt = T1TilePaths.Glue(2)
+    val ci = T1TilePaths.Glue(3)
+
+    val a = Tile(nullGlue, nullGlue, sq, wt)
+    val b = Tile(sq, ci, nullGlue, wt)
+    val c = Tile(dt, nullGlue, nullGlue, ci)
+    val d = Tile(nullGlue, wt, dt, nullGlue)
+    val alpha = TileSet(Set(a, b, c, d))
+
+    val pathEdges = enumZDDValidPaths(numberLink(vis.grid.graph, vis.h))
+
+    tilePaths(vis.h, pathEdges, vis.grid, alpha)
+
+  }
 }
 
 object vis {
@@ -148,12 +177,12 @@ object vis {
 
   var ggV: List[UnderlyingGraph.Vertex] = grid.graph.vertices
   var h = List(VertexPair(ggV(0), ggV.last))
-  //var root: ZDDMain.Node = algorithmTwo(grid.graph, h)
   var root: ZDDMain.Node = null
 
-  def updateVis(height: Int, width: Int, choice: Int) {
+  def updateVis(height: Int, width: Int) {
     grid = GridGraph(height, width)
-    //root = algorithmTwo(grid.graph, h)
+    ggV = grid.graph.vertices
+    h = List(VertexPair(ggV(0), ggV.last))
   }
 }
 
