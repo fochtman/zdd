@@ -354,7 +354,11 @@ object ZDDMain {
     End oneChild calculations
      */
 
-    var counter = 0
+    var counter = 0 // test variable, to remove eventually
+
+    /*
+    Main loop of numLink function
+     */
     for (i <- edgeIndices; n <- frontier(i)) {
       counter += 1
 
@@ -368,12 +372,14 @@ object ZDDMain {
 
     }
 
+    /*
     println("setupT: " + setupT)
     println("zeroChildT: " + zeroChildT.sum)
     println("oneChildT: " + oneChildT.sum)
     println("sumT: " + (zeroChildT.sum + oneChildT.sum + setupT))
     println("total: " + (_time - startT))
     println("counter: " + counter)
+    */
 
     frontier(0).head
   }

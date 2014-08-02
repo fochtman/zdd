@@ -55,13 +55,6 @@ object UnderlyingGraph {
             cols map(j =>
               ((i, j), (i + 1, j))))
 
-      val unorderedEdges =
-        (horizontalEdges ::: verticalEdges) map(e =>
-          Edge(coordToVertex(e._1), coordToVertex(e._2)))
-
-      // a heuristic to (generally) reduce the size of the resulting zdd
-      val edges = unorderedEdges.sortWith(compareEdgeOrder)
-
       val hEdges =
         horizontalEdges map(e =>
           Edge(coordToVertex(e._1), coordToVertex(e._2)))
@@ -69,6 +62,9 @@ object UnderlyingGraph {
       val vEdges =
         verticalEdges map(e =>
           Edge(coordToVertex(e._1), coordToVertex(e._2)))
+
+      // a heuristic to (generally) reduce the size of the resulting zdd
+      val edges = (hEdges ::: vEdges).sortWith(compareEdgeOrder)
 
       (Graph(vertices, edges), hEdges.toVector, vEdges.toVector)
     }

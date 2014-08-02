@@ -154,22 +154,27 @@ object FinalProjUI  extends SimpleSwingApplication {
 
   def tmpTileLink(): Unit = {
     println("tmpTileLink")
-    val sq = T1TilePaths.Glue(0)
-    val wt = T1TilePaths.Glue(1)
-    val dt = T1TilePaths.Glue(2)
-    val ci = T1TilePaths.Glue(3)
-    val cc = T1TilePaths.Glue(4)
+    val sq = T1TilePaths.Glue('a'.toInt)
+    val wt = T1TilePaths.Glue('b'.toInt)
+    val dt = T1TilePaths.Glue('c'.toInt)
+    val ci = T1TilePaths.Glue('d'.toInt)
+    val cc = T1TilePaths.Glue('e'.toInt)
 
     val a = Tile(nullGlue, nullGlue, sq, wt)
     val b = Tile(sq, ci, nullGlue, nullGlue)
     val c = Tile(dt, nullGlue, nullGlue, ci)
     val d = Tile(nullGlue, wt, dt, nullGlue)
     val e = Tile(cc, cc, cc, cc)
-    val alpha = TileSet(Set(a, b, c, d, e))
+    val f = Tile(nullGlue, cc, nullGlue, cc)
+    //val e = Tile(nullGlue, nullGlue, nullGlue, nullGlue)
+    //val alpha = TileSet(Set(a, b, c, d, e, f))
+    val alpha = TileSet(Set(a, b, c))
 
     val pathEdges = enumZDDValidPaths(numberLink(vis.grid.graph, vis.h))
 
-    tilePaths(vis.h, pathEdges, vis.grid, alpha)
+    val m = mapPathToTilePaths(vis.h, pathEdges, vis.grid, alpha)
+
+    m.foreach(println)
 
   }
 }
