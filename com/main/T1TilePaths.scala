@@ -2,7 +2,7 @@ package com.main
 
 import UnderlyingGraph._
 import scala.collection.mutable.ListBuffer
-import scala.collection.mutable.HashMap._
+import scala.collection.mutable.HashMap
 
 object T1TilePaths {
 
@@ -159,9 +159,9 @@ object T1TilePaths {
     pathSet
   }
 
-  def buildTileFrontier(directions: Vector[Direction], alpha: TileSet): scala.collection.mutable.HashMap[Int, Set[Tile]] = {
+  def buildTileFrontier(directions: Vector[Direction], alpha: TileSet): HashMap[Int, Set[Tile]] = {
 
-    val tileFrontier = scala.collection.mutable.HashMap[Int, Set[Tile]](0 -> alpha.tileSet)
+    val tileFrontier = HashMap[Int, Set[Tile]](0 -> alpha.tileSet)
 
     val pathSize = directions.length
 
@@ -181,7 +181,7 @@ object T1TilePaths {
     tileFrontier
   }
 
-  def buildTilePaths(tileFrontier: scala.collection.mutable.HashMap[Int, Set[Tile]], directions: Vector[Direction]): ListBuffer[ListBuffer[Tile]] = {
+  def tilePaths(directions: Vector[Direction], tileFrontier: HashMap[Int, Set[Tile]]): ListBuffer[ListBuffer[Tile]] = {
     // reverse sort the tileFrontier keys, so that we can start building our tile paths from the bottom
     // of the tree up
     val last = tileFrontier.keys.toList.sortWith(_ > _).head
@@ -208,45 +208,13 @@ object T1TilePaths {
     val edges = g.graph.edges
     val startVertex = h.head.v0
 
-    //val pathToTilePath = scala.collection.mutable.HashMap[ListBuffer[Byte], ListBuffer[ListBuffer[Tile]]]()
     val tilePathsList =
       for (p <- paths) yield {
         val pathSet = buildPathSet(p, edges)
         val directions = directionVector(pathSet, startVertex, g)
         val tileFrontier = buildTileFrontier(directions, alpha)
-        buildTilePaths(tileFrontier, directions)
-        //val tilePaths = buildTilePaths(tileFrontier, directions)
-        //pathToTilePath(p) = tilePaths
+        tilePaths(directions, tileFrontier)
       }
     Map(paths zip tilePathsList:_*)
-    //pathToTilePath
   }
 }
-/*
-val tileFrontier = buildTileFrontier(p, g.graph.edges)
-val pathEdgeIndices =
-  (p.zipWithIndex filter (x =>
-    x._1 == 1)) map (y => y._2)
-
-val pathSet =
-  (pathEdgeIndices map (i =>
-    g.graph.edges(i)) map (e =>
-      Set(e.u, e.v))).toSet
-
-val tileFrontier = scala.collection.mutable.HashMap[Int, Set[Tile]](0 -> alpha.tileSet)
-
-(1 to pathEdgeIndices.length) map (i =>
-  tileFrontier(i) = Set[Tile]())
-
-
-for (i <- Range(0, pathEdgeIndices.length); t <- tileFrontier(i)) {
-  if (tileFrontier isDefinedAt i + 1) {
-    val currentDir = directionForEdge(i)
-    val availableGlue = t.matchGlueFrom(currentDir)
-    if (availableGlue != nullGlue) {
-      val validTiles = alpha.masterBucket(currentDir, availableGlue)
-      tileFrontier(i + 1) ++= validTiles
-    }
-  }
-}
-*/
