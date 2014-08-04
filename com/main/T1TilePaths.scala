@@ -19,7 +19,7 @@ object T1TilePaths {
   object nullGlue extends Adherent {
     def label = throw new NoSuchElementException("nullGlue.label")
     def value = throw new NoSuchElementException("nullGlue.value")
-    override def toString = "_"
+    override def toString = ""
   }
 
   object Direction extends Enumeration {

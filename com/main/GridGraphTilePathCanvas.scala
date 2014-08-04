@@ -1,12 +1,10 @@
 package com.main
 
 import java.awt.RenderingHints
-import java.lang.System.{currentTimeMillis => _time}
 
 import com.main.UnderlyingGraph._
 import com.main.ZDDMain._
 import com.main.T1TilePaths._
-import com.main.BDD.{algoTwo, enumZDDValidPaths2}
 
 import scala.collection.mutable.ListBuffer
 import scala.swing._
@@ -18,11 +16,13 @@ class GridGraphTilePathCanvas(dim: java.awt.Dimension) extends Panel {
 
   var pathsToTilePaths = Map[ListBuffer[Byte], ListBuffer[ListBuffer[Tile]]]()
   var tilePaths = ListBuffer[ListBuffer[Tile]]()
+  var currentTilePath = ListBuffer[Tile]()
   var pathSet = Set[Set[Vertex]]()
 
   var currentPathCoords = List[((Int, Int), (Int, Int))]()
   var currentTileCoords = List[(Int, Int)]()
 
+  var tileToColor = scala.collection.mutable.HashMap[Tile, java.awt.Color]()
 
   // the height and width of the grid squares
   private val jump = dim.getHeight.toInt / 10
@@ -55,15 +55,12 @@ class GridGraphTilePathCanvas(dim: java.awt.Dimension) extends Panel {
 
     xPathAxis = xAxis ::: (xAxis.last + jump) :: Nil
     yPathAxis = yAxis ::: (yAxis.last + jump) :: Nil
-
-    println("xAxis "+xPathAxis)
-    println("yAxis "+yPathAxis)
   }
 
   override def paintComponent(g: Graphics2D) {
     updateGraphCanvasFields()
 
-    g.setBackground(zorn.titaniumWhite)
+    g.setBackground(zorn.ivoryBlack)
     g.clearRect(0, 0, size.width, size.height)
     g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
 
@@ -80,6 +77,7 @@ class GridGraphTilePathCanvas(dim: java.awt.Dimension) extends Panel {
     currentPathCoords map { case (u, v) =>
       g.drawLine(xPathAxis(u._1), yPathAxis(u._2), xPathAxis(v._1), yPathAxis(v._2))
     }
+
     g.setStroke(stroke.four)
     g.setColor(zorn.cadmiumRedMedium)
     g.setFont(new Font("Ariel", java.awt.Font.ITALIC, 14))
@@ -88,23 +86,23 @@ class GridGraphTilePathCanvas(dim: java.awt.Dimension) extends Panel {
 
 
   def drawTiles(g: Graphics2D): Unit = {
-    def helper(currTileCoords: List[(Int, Int)]): Unit = {
-      currTileCoords match {
-        case Nil =>
-        case head :: tail=>
-          g.drawRect(xPathAxis(head._1)-32, yPathAxis(head._2)-32, jump, jump)
-          helper(tail)
-      }
+    for ((coord, tile) <- currentTileCoords zip currentTilePath) {
+      val x = xPathAxis(coord._1)
+      val y = yPathAxis(coord._2)
+
+      g.setColor(tileToColor(tile))
+      g.fillRect(x-32, y-32, jump, jump)
+
+      g.setStroke(stroke.four)
+      g.setColor(zorn.ivoryBlack)
+      g.drawRect(x-32, y-32, jump, jump)
+
+      g.drawString(s"${tile.north}", x-5, y-20)
+      g.drawString(s"${tile.east}", x+20, y+5)
+      g.drawString(s"${tile.south}", x-5, y+28)
+      g.drawString(s"${tile.west}", x-28, y+5)
     }
-    helper(currentTileCoords)
   }
-  //var counter = 1
-  /*
-  g.drawString(s"$counter", xPathAxis(head._1)-28, yPathAxis(head._2)+28)
-  val strr = s"${xPathAxis(head._1)},${yPathAxis(head._2)}"
-  g.drawString(strr, xPathAxis(head._1)-28, yPathAxis(head._2))
-  counter += 1
-  */
 
   def orderedVertexVector(pathSet: Set[Set[Int]], start: Vertex): Vector[Vertex] = {
     def helper(ps: Set[Set[Int]], u: Vertex): List[Vertex] = {
@@ -145,58 +143,13 @@ class GridGraphTilePathCanvas(dim: java.awt.Dimension) extends Panel {
   }
 
   def changeTilePath(tilePathSliderValue: Int): Unit = {
-    val tiles = tilePaths(tilePathSliderValue)
-    println(tiles)
+    currentTilePath = tilePaths(tilePathSliderValue)
+    repaint()
   }
 
-  def time[R](block: => R, funcName: String): R = {
-    val t0 = _time
-    val result = block
-    val t1 = _time
-    println(funcName +"\telapsed time: " + (t1 - t0) + "ms")
-    result
-  }
-
-  def collectPathEdges(choice: Int): Unit = {
-    val ggV: List[UnderlyingGraph.Vertex] = vis.grid.graph.vertices
-    val h = List(VertexPair(ggV(0), ggV.last))
-
-    choice match {
-      case 1 =>
-        val hamiltonianPaths = true
-        val zddRoot: ZDDMain.Node = time(numberLink(vis.grid.graph, h, hamiltonianPaths), "Algo2 =>")
-        pathEdges = time(enumZDDValidPaths(zddRoot), "Path finding =>\t")
-        println("Algo2 Number of valid paths: " + pathEdges.length + "\n")
-
-      case 2 =>
-        val hamiltonianPaths = false
-        val zddRoot: ZDDMain.Node = time(numberLink(vis.grid.graph, h, hamiltonianPaths), "Algo2 =>")
-        pathEdges = time(enumZDDValidPaths(zddRoot), "Path finding =>\t")
-        println("Algo2 Number of valid paths: " + pathEdges.length + "\n")
-    }
-
-    collectTilePaths()
-
-  }
-
-  def collectTilePaths(): Unit = {
-    println("tmpTileLink")
-    val sq = T1TilePaths.Glue('a'.toInt)
-    val wt = T1TilePaths.Glue('b'.toInt)
-    val dt = T1TilePaths.Glue('c'.toInt)
-    val ci = T1TilePaths.Glue('d'.toInt)
-    val cc = T1TilePaths.Glue('e'.toInt)
-
-    val a = Tile(nullGlue, nullGlue, sq, wt)
-    val b = Tile(sq, ci, nullGlue, nullGlue)
-    val c = Tile(dt, nullGlue, nullGlue, ci)
-    val d = Tile(nullGlue, wt, dt, nullGlue)
-    val e = Tile(cc, cc, cc, cc)
-    val f = Tile(nullGlue, cc, nullGlue, cc)
-    //val e = Tile(nullGlue, nullGlue, nullGlue, nullGlue)
-    val alpha = TileSet(Set(a, b, c, d, e, f))
-    //val alpha = TileSet(Set(a, b, c, d))
-
+  def collectTilePaths(alpha: TileSet, hamiltonianPath: Boolean): Unit = {
+    val zddRoot = numberLink(vis.grid.graph, vis.h, hamiltonianPath)
+    pathEdges = enumZDDValidPaths(zddRoot)
     pathsToTilePaths = mapPathsToTilePaths(vis.h, pathEdges, vis.grid, alpha)
 
     var totals = 0
@@ -204,5 +157,9 @@ class GridGraphTilePathCanvas(dim: java.awt.Dimension) extends Panel {
       totals += v.length
 
     println("Totals: "+ totals)
+
+    assert(alpha.tileSet.size <= zorn.blended.length)
+    tileToColor.clear()
+    tileToColor ++= alpha.tileSet zip zorn.blended.reverse
   }
 }

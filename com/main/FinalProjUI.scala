@@ -157,12 +157,14 @@ object FinalProjUI  extends SimpleSwingApplication {
               val newHeight = sizes.height() + 1
               val newWidth  = sizes.width() + 1
               vis.updateVis(newHeight, newWidth)
-              algorithms.mutex.selected match {
-                case Some(algorithms.hamPathEnum) =>
-                  gridWithTilesVis.panel.canvas.collectPathEdges(1)
-                case Some(algorithms.pathEnum) =>
-                  gridWithTilesVis.panel.canvas.collectPathEdges(2)
-              }
+              val hamiltonianPath =
+                algorithms.mutex.selected match {
+                  case Some(algorithms.hamPathEnum) =>
+                    true
+                  case Some(algorithms.pathEnum) =>
+                    false
+                }
+              gridWithTilesVis.panel.canvas.collectTilePaths(tileSets.alpha, hamiltonianPath)
               gridWithTilesVis.setPathSlider()
               gridWithTilesVis.setTilePathSlider()
 
@@ -269,12 +271,18 @@ object FinalProjUI  extends SimpleSwingApplication {
     }
 
     def setTilePathSlider() = {
-      val numCurrentTilePaths = panel.canvas.pathsToTilePaths(panel.canvas.byteStr).size
+      val numCurrentTilePaths =
+        if (panel.canvas.pathsToTilePaths.contains(panel.canvas.byteStr))
+          panel.canvas.pathsToTilePaths(panel.canvas.byteStr).size
+        else
+          0
+
       panel.tilePathSlider.max =
         if (numCurrentTilePaths == 0)
           0
         else
           numCurrentTilePaths - 1
+
       panel.tilePathSlider.value = 0
     }
 
@@ -289,40 +297,6 @@ object FinalProjUI  extends SimpleSwingApplication {
     }
   }
 
-  /*
-  def tmpTileLink(): Unit = {
-    println("tmpTileLink")
-    val sq = T1TilePaths.Glue('a'.toInt)
-    val wt = T1TilePaths.Glue('b'.toInt)
-    val dt = T1TilePaths.Glue('c'.toInt)
-    val ci = T1TilePaths.Glue('d'.toInt)
-    val cc = T1TilePaths.Glue('e'.toInt)
-
-    val a = Tile(nullGlue, nullGlue, sq, wt)
-    val b = Tile(sq, ci, nullGlue, nullGlue)
-    val c = Tile(dt, nullGlue, nullGlue, ci)
-    val d = Tile(nullGlue, wt, dt, nullGlue)
-    val e = Tile(cc, cc, cc, cc)
-    val f = Tile(nullGlue, cc, nullGlue, cc)
-    //val e = Tile(nullGlue, nullGlue, nullGlue, nullGlue)
-    //val alpha = TileSet(Set(a, b, c, d, e, f))
-    val alpha = TileSet(Set(a, b, c, d))
-
-    val hamiltonianPaths = false
-    val pathEdges = enumZDDValidPaths(numberLink(vis.grid.graph, vis.h, hamiltonianPaths))
-
-    val m = mapPathsToTilePaths(vis.h, pathEdges, vis.grid, alpha)
-
-    var totals = 0
-    for ((k, v) <- m)
-      totals += v.length
-
-    println("Totals: "+ totals)
-
-  }
-  */
-//}
-
 object vis {
   var grid = GridGraph(2, 2)
 
@@ -335,6 +309,25 @@ object vis {
     ggV = grid.graph.vertices
     h = List(VertexPair(ggV(0), ggV.last))
   }
+}
+
+object tileSets {
+  val sq = T1TilePaths.Glue('a'.toInt)
+  val wt = T1TilePaths.Glue('b'.toInt)
+  val dt = T1TilePaths.Glue('c'.toInt)
+  val ci = T1TilePaths.Glue('d'.toInt)
+  val cc = T1TilePaths.Glue('e'.toInt)
+
+  val a = Tile(nullGlue, nullGlue, sq, wt)
+  val b = Tile(sq, ci, nullGlue, nullGlue)
+  val c = Tile(dt, nullGlue, nullGlue, ci)
+  val d = Tile(nullGlue, wt, dt, nullGlue)
+  val e = Tile(cc, cc, cc, cc)
+  val f = Tile(nullGlue, cc, nullGlue, cc)
+  val g = Tile(sq, cc, sq, cc)
+  val alpha = TileSet(Set(a, b, c, d, e, f, g))
+  val beta = TileSet(Set(a, b, c, d))
+  val theta = TileSet(Set(e, f))
 }
 
 object stroke {
@@ -364,7 +357,7 @@ object zorn  {
   def blendPalette(palette: List[Color]): List[Color] = {
     def f(c1: Int, c2: Int) = (c1+c2)/2
     for (i <- palette; j <- palette) yield {
-      new Color(f(i.getRed, j.getRed), f(i.getGreen, j.getGreen), f(i.getBlue, j.getBlue), 30)
+      new Color(f(i.getRed, j.getRed), f(i.getGreen, j.getGreen), f(i.getBlue, j.getBlue), 230)
     }
   }
 }
