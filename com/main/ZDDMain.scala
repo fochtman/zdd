@@ -160,7 +160,7 @@ object ZDDMain {
     pathBuffer
   }
 
-  def numberLink(g: Graph, h: List[VertexPair]): Node = {
+  def numberLink(g: Graph, h: List[VertexPair], hamiltonianPaths: Boolean): Node = {
     val startT = _time
     var t = _time
 
@@ -179,7 +179,8 @@ object ZDDMain {
     val iMax = edgeIndices.length
     assert(iMax == domain.size, "domain.size != edgeIndices.length")
 
-    val hamiltonianPath = true
+    val updateMates = true
+    val dontUpdateMates = false
 
     val setupT = _time - t
 
@@ -187,7 +188,7 @@ object ZDDMain {
     var oneChildT = ListBuffer[Long]()
 
 
-    def getNode(i: Int, updateMates: Boolean, nMates: Map[Vertex, Vertex]): Node = {
+    def getNode(i: Int, updateMatesChoice: Boolean, nMates: Map[Vertex, Vertex]): Node = {
       val currentEdge = edges(i)
       val nextEdge = edges(i + 1)
       val u = currentEdge.u
@@ -195,9 +196,10 @@ object ZDDMain {
       val frontierSet = frontier(i + 1)
 
       val nextMates =
-        if (updateMates) {
+        if (!updateMatesChoice) {
+          nMates
+        } else {
           val edgeSet = Set(u, v)
-
           for {
             (w, mate) <- nMates
           } yield {
@@ -210,8 +212,6 @@ object ZDDMain {
             else
               (w, mate) //nMates(w)
           }
-        } else {
-          nMates
         }
 
       val newNode =
@@ -284,7 +284,7 @@ object ZDDMain {
             matchV2(tail)
       }
 
-      if (hamiltonianPath) {
+      if (hamiltonianPaths) {
         val res0 = matchV(List(edge.u, edge.v) diff nextDomain)
         val res1 = matchV2(domain(i) diff nextDomain)
         res0 || res1
@@ -297,7 +297,7 @@ object ZDDMain {
       if (zeroChildIsIncompatible(i, n))
         zeroTerminal
       else if (i + 1 < iMax) {
-        getNode(i, false, n.mates)
+        getNode(i, dontUpdateMates, n.mates)
       }
       else
         oneTerminal
@@ -346,7 +346,7 @@ object ZDDMain {
       if (oneChildIsIncompatible(i, n))
         zeroTerminal
       else if (i + 1 < iMax)
-        getNode(i, true, n.mates)
+        getNode(i, updateMates, n.mates)
       else
         oneTerminal
     }

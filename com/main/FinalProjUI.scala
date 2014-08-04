@@ -10,6 +10,7 @@ import com.main.BDD.{algoTwo, enumZDDValidPaths2}
 
 import scala.collection.mutable.{HashMap, ListBuffer}
 import scala.swing.BorderPanel.Position._
+import scala.swing.GridBagPanel.Fill
 import scala.swing.Swing._
 import scala.swing.TabbedPane._
 import scala.swing._
@@ -23,59 +24,9 @@ object FinalProjUI  extends SimpleSwingApplication {
     contents = new BorderPanel {
 
       val tabs = new TabbedPane {
-
-        val param = new GridPanel(3, 1) {
-
-          contents += sizes.panel
-          contents += algorithms.panel
-          contents += buildChoices.panel
-
-          listenTo(buildChoices.Grid)
-          listenTo(buildChoices.DAG)
-          listenTo(buildChoices.TileLink)
-
-          reactions += {
-            case ButtonClicked(buildChoices.Grid) =>
-              System.gc()
-              val newHeight = sizes.height() + 1
-              val newWidth  = sizes.width() + 1
-              algorithms.getSelection() match {
-                case "Path Enumeration" =>
-                  vis.updateVis(newHeight, newWidth)
-                  gridVis.panel.canvas.collectPathEdges(1)
-                case "Numberlink Solver" =>
-                  vis.updateVis(newHeight, newWidth)
-                  gridVis.panel.canvas.collectPathEdges(2)
-              }
-
-              gridVis.setSlider()
-
-            case ButtonClicked(buildChoices.DAG) =>
-              algorithms.getSelection() match {
-                case "Path Enumeration" =>
-                  DAGVis.pane.canvas.repaintDAG()
-                case "Numberlink Solver" =>
-                  DAGVis.pane.canvas.repaintDAG()
-              }
-
-            case ButtonClicked(buildChoices.TileLink) =>
-              System.gc()
-              val newHeight = sizes.height() + 1
-              val newWidth  = sizes.width() + 1
-              vis.updateVis(newHeight, newWidth)
-              tmpTileLink()
-          }
-        }
-
-        val parameters = new BorderPanel {
-          layout(param) = Center
-        }
-        pages += new Page("Parameters", parameters)
-
+        pages += new Page("Parameters", parameters.panel)
         pages += new Page("Grid Graph", gridVis.panel)
-
         pages += new Page("DAG", DAGVis.pane)
-
       }
       layout(tabs) = Center
     }
@@ -86,6 +37,136 @@ object FinalProjUI  extends SimpleSwingApplication {
           sys.exit(0)
         })
       }
+    }
+  }
+
+  object parameters {
+    val param = new GridPanel(3, 1) {
+      contents += sizes.panel
+      contents += algorithms.panel
+      contents += buildChoices.panel
+    }
+
+    val panel = new BorderPanel {
+      layout(param) = Center
+      layout(applyParameters.panel) = South
+    }
+
+  }
+
+  object sizes {
+    val one = new RadioButton("Square Grid Graph")
+    val mutex = new ButtonGroup(one)
+    mutex.select(one)
+
+    val graphType = new BoxPanel(Orientation.Vertical) {
+      contents ++= mutex.buttons
+    }
+
+    val h = new ComboBox(1 to 8)
+    val w = new ComboBox(1 to 8)
+
+    val hFlow = new FlowPanel {
+      contents += h
+      contents += new Label{ text = "Rows"}
+    }
+    val wFlow = new FlowPanel {
+      contents += w
+      contents += new Label{ text = "Columns"}
+    }
+
+    val panel = new BoxPanel(Orientation.Vertical) {
+      border = CompoundBorder(TitledBorder(EtchedBorder, "Underlying Graph"), EmptyBorder(5, 5, 5, 10))
+      contents += new BorderPanel {
+        layout(graphType) = West
+      }
+      contents += new BorderPanel {
+        layout(hFlow) = West
+      }
+      contents += new BorderPanel {
+        layout(wFlow) = West
+      }
+    }
+
+    def height = () => h.selection.item
+    def width = () => w.selection.item
+  }
+
+  object algorithms {
+    val one = new RadioButton("Hamiltonian Path Enumeration")
+    val two = new RadioButton("Path Enumeration")
+    val mutex = new ButtonGroup(one, two)
+    mutex.select(one)
+
+    val panel = new BoxPanel(Orientation.Vertical) {
+      border = CompoundBorder(TitledBorder(EtchedBorder, "Algorithm"), EmptyBorder(5, 5, 5, 10))
+      contents ++= mutex.buttons
+      listenTo(one, two)
+    }
+
+    def getSelection = () => mutex.selected.get.text
+  }
+
+  object buildChoices {
+    val gridGraph = new RadioButton("Grid Graph")
+    val gridGraphTilePaths = new RadioButton("Grid Graph with Tile Paths")
+    val dag = new RadioButton("DAG")
+    val mutex = new ButtonGroup(gridGraph, gridGraphTilePaths, dag)
+    mutex.select(gridGraph)
+
+    val panel = new BoxPanel(Orientation.Vertical) {
+      border = CompoundBorder(TitledBorder(EtchedBorder, "Visualize as..."), EmptyBorder(5, 5, 5, 10))
+      contents ++= mutex.buttons
+      listenTo(gridGraph, gridGraphTilePaths, dag)
+    }
+  }
+
+  object applyParameters {
+    val build = new Button {
+      text = "Build"
+    }
+    val panel = new BoxPanel(Orientation.Vertical) {
+      contents += new BorderPanel {
+        layout(build) = Center
+      }
+    }
+
+    listenTo(build)
+
+    reactions += {
+      case ButtonClicked(`build`) =>
+
+        buildChoices.mutex.selected match {
+
+          case Some(buildChoices.gridGraph) =>
+            System.gc()
+            val newHeight = sizes.height() + 1
+            val newWidth  = sizes.width() + 1
+            algorithms.getSelection() match {
+              case "Hamiltonian Path Enumeration" =>
+                vis.updateVis(newHeight, newWidth)
+                gridVis.panel.canvas.collectPathEdges(1)
+              case "Path Enumeration" =>
+                vis.updateVis(newHeight, newWidth)
+                gridVis.panel.canvas.collectPathEdges(2)
+            }
+            gridVis.setSlider()
+
+          case Some(buildChoices.gridGraphTilePaths) =>
+            System.gc()
+            val newHeight = sizes.height() + 1
+            val newWidth  = sizes.width() + 1
+            vis.updateVis(newHeight, newWidth)
+            tmpTileLink()
+
+          case Some(buildChoices.dag) =>
+            algorithms.getSelection() match {
+              case "Hamiltonian Path Enumeration" =>
+                DAGVis.pane.canvas.repaintDAG()
+              case "Path Enumeration" =>
+                DAGVis.pane.canvas.repaintDAG()
+            }
+        }
     }
   }
 
@@ -125,59 +206,6 @@ object FinalProjUI  extends SimpleSwingApplication {
     }
   }
 
-  object sizes {
-    val h = new ComboBox(1 to 8)
-    val w = new ComboBox(1 to 8)
-    val hFlow = new FlowPanel {
-      contents += h
-      contents += new Label("Rows")
-    }
-    val wFlow = new FlowPanel {
-      contents += w
-      contents += new Label("Columns")
-    }
-    val panel = new BoxPanel(Orientation.Vertical) {
-      border = CompoundBorder(TitledBorder(EtchedBorder, "Rows * Columns"), EmptyBorder(5, 5, 5, 10))
-      contents += hFlow
-      contents += wFlow
-    }
-
-    def height = () => h.selection.item
-    def width = () => w.selection.item
-  }
-
-  object algorithms {
-    val one = new RadioButton("Path Enumeration")
-    val two = new RadioButton("Numberlink Solver")
-    val mutex = new ButtonGroup(one, two)
-
-    val panel = new BoxPanel(Orientation.Vertical) {
-      border = CompoundBorder(TitledBorder(EtchedBorder, "Algorithm"), EmptyBorder(5, 5, 5, 10))
-      contents ++= mutex.buttons
-      listenTo(one, two)
-    }
-
-    def getSelection = () => mutex.selected.get.text
-  }
-
-  object buildChoices {
-    val Grid = new Button {
-      text = "Grid"
-    }
-    val DAG = new Button {
-      text = "DAG"
-    }
-    val TileLink = new Button {
-      text = "TileLink"
-    }
-    val panel = new BoxPanel(Orientation.Vertical) {
-      border = CompoundBorder(TitledBorder(EtchedBorder, "View ZDD on a... "), EmptyBorder(5, 5, 5, 10))
-      contents += Grid
-      contents += DAG
-      contents += TileLink
-    }
-  }
-
   object DAGVis {
     lazy val pane = new ScrollPane {
       val canvas = new DAGCanvas {
@@ -202,10 +230,11 @@ object FinalProjUI  extends SimpleSwingApplication {
     val e = Tile(cc, cc, cc, cc)
     val f = Tile(nullGlue, cc, nullGlue, cc)
     //val e = Tile(nullGlue, nullGlue, nullGlue, nullGlue)
-    //val alpha = TileSet(Set(a, b, c, d, e, f))
-    val alpha = TileSet(Set(a, b, c))
+    val alpha = TileSet(Set(a, b, c, d, e, f))
+    //val alpha = TileSet(Set(a, b, c))
 
-    val pathEdges = enumZDDValidPaths(numberLink(vis.grid.graph, vis.h))
+    val hamiltonianPaths = true
+    val pathEdges = enumZDDValidPaths(numberLink(vis.grid.graph, vis.h, hamiltonianPaths))
 
     val m = mapPathToTilePaths(vis.h, pathEdges, vis.grid, alpha)
 
@@ -260,35 +289,3 @@ object zorn  {
   }
 }
 
-/*
-case Node(_, _, `zeroTerminal`, hi: Node) =>
-  npl(i) += 1
-  helper(hi, i+1)
-
-case Node(_, _, `oneTerminal`, hi: Node) =>
-  npl(i) += 1
-  helper(hi, i+1)
-
-case Node(_, _, lo: Node, `zeroTerminal`) =>
-  npl(i) += 1
-  helper(lo, i+1)
-
-case Node(_, _, lo: Node, `oneTerminal`) =>
-  npl(i) += 1
-  helper(lo, i+1)
-
-case Node(_, _, `zeroTerminal`, `zeroTerminal`) =>
-  npl(i) += 1
-
-case Node(_, _, null, null) =>
-  npl(i) += 1
-
-case Node(_, _, `zeroTerminal`, `oneTerminal`) =>
-  npl(i) += 1
-
-case Node(_, _, `oneTerminal`, `zeroTerminal`) =>
-  npl(i) += 1
-
-case Node(_, _, `oneTerminal`, `oneTerminal`) =>
-  npl(i) += 1
-*/

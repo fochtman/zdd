@@ -72,8 +72,7 @@ class GridGraphCanvas(dim: java.awt.Dimension) extends Panel {
     g.setColor(zorn.yellowOchreAlpha)
 
     currentPathCoords map { case (u, v) =>
-      g.drawLine(xPathAxis(u._1), yPathAxis(u._2),
-        xPathAxis(v._1), yPathAxis(v._2))
+      g.drawLine(xPathAxis(u._1), yPathAxis(u._2), xPathAxis(v._1), yPathAxis(v._2))
     }
   }
 
@@ -98,28 +97,37 @@ class GridGraphCanvas(dim: java.awt.Dimension) extends Panel {
     result
   }
 
-  def collectPathEdges(choice: Int): Unit = choice match {
+  def collectPathEdges(choice: Int): Unit = {
+    val ggV: List[UnderlyingGraph.Vertex] = vis.grid.graph.vertices
+    val h = List(VertexPair(ggV(0), ggV.last))
+
+    choice match {
+      case 1 =>
+        val hamiltonianPaths = true
+        val zddRoot: ZDDMain.Node = time(numberLink(vis.grid.graph, h, hamiltonianPaths), "Algo2 =>")
+        pathEdges = time(enumZDDValidPaths(zddRoot), "Path finding =>\t")
+        println("Algo2 Number of valid paths: " + pathEdges.length + "\n")
+
+      case 2 =>
+        val hamiltonianPaths = false
+        val zddRoot: ZDDMain.Node = time(numberLink(vis.grid.graph, h, hamiltonianPaths), "Algo2 =>")
+        pathEdges = time(enumZDDValidPaths(zddRoot), "Path finding =>\t")
+        println("Algo2 Number of valid paths: " + pathEdges.length + "\n")
+    }
+
+    /*
     case 1 =>
       val ggV: List[UnderlyingGraph.Vertex] = vis.grid.graph.vertices
       val h = List(VertexPair(ggV(0), ggV.last))
       val zddRoot: BDD.Node = time (algoTwo(vis.grid.graph, h), "BDDAlgo2 =>")
       pathEdges = time (enumZDDValidPaths2(zddRoot), "Path finding =>\t")
       println("Algo2 Number of valid paths: "+ pathEdges.length +"\n")
-    /*
     println("Here in algo1...")
     val zddRoot: ZDDMain.Node = time (algorithmOne(vis.grid.graph), "Algo1 =>")
     pathEdges = time (enumZDDValidPaths(zddRoot), "Path finding =>\t")
     //pathEdges.foreach(println)
     println("Algo1 Number of valid paths: "+ pathEdges.length +"\n")
     */
-
-    case 2 =>
-      val ggV: List[UnderlyingGraph.Vertex] = vis.grid.graph.vertices
-      val h = List(VertexPair(ggV(0), ggV.last))
-      val zddRoot: ZDDMain.Node = time (numberLink(vis.grid.graph, h), "Algo2 =>")
-      pathEdges = time (enumZDDValidPaths(zddRoot), "Path finding =>\t")
-      println("Algo2 Number of valid paths: "+ pathEdges.length +"\n")
-
   }
 }
 

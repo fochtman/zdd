@@ -49,22 +49,31 @@ object T1TilePaths {
     }
 
     def canBind(that: Tile): Boolean = {
-      if (that.north != nullGlue && that.north == this.south) true
-      else if (that.south != nullGlue && that.south == this.north) true
-      else if (that.east != nullGlue && that.east == this.west) true
-      else if (that.west != nullGlue && that.west == this.east) true
-      else false
+      if (that.north != nullGlue && that.north == this.south)
+        true
+      else if (that.south != nullGlue && that.south == this.north)
+        true
+      else if (that.east != nullGlue && that.east == this.west)
+        true
+      else if (that.west != nullGlue && that.west == this.east)
+        true
+      else
+        false
     }
 
     def canBind(g: Adherent, dir: Direction): Boolean = {
-      if (g == nullGlue) false
-      else if (matchGlueFrom(dir) == nullGlue) false
-      else if (matchGlueFrom(dir) == g) true
-      else false
+      if (g == nullGlue)
+        false
+      else if (this.matchGlueFrom(dir) == nullGlue)
+        false
+      else if (this.matchGlueFrom(dir) == g)
+        true
+      else
+        false
     }
 
     def canBind(that: Tile, dir: Direction): Boolean = {
-      val currentEdge = oppositeEdge(dir)
+      val currentEdge = this.oppositeEdge(dir)
       val proceedingEdge = that.matchGlueFrom(dir)
       if (currentEdge != nullGlue && proceedingEdge == currentEdge)
         true
