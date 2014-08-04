@@ -1,20 +1,21 @@
 package com.main
 
-import java.awt.{BasicStroke, RenderingHints}
-import java.lang.System.{currentTimeMillis => _time}
+import java.awt.BasicStroke
 
 import com.main.UnderlyingGraph._
 import com.main.ZDDMain._
 import com.main.T1TilePaths._
-import com.main.BDD.{algoTwo, enumZDDValidPaths2}
 
-import scala.collection.mutable.{HashMap, ListBuffer}
 import scala.swing.BorderPanel.Position._
-import scala.swing.GridBagPanel.Fill
 import scala.swing.Swing._
 import scala.swing.TabbedPane._
 import scala.swing._
 import scala.swing.event._
+
+//import com.main.BDD.{algoTwo, enumZDDValidPaths2}
+//import java.lang.System.{currentTimeMillis => _time}
+//import scala.collection.mutable.{HashMap, ListBuffer}
+//import scala.swing.GridBagPanel.Fill
 
 
 object FinalProjUI  extends SimpleSwingApplication {
@@ -26,6 +27,7 @@ object FinalProjUI  extends SimpleSwingApplication {
       val tabs = new TabbedPane {
         pages += new Page("Parameters", parameters.panel)
         pages += new Page("Grid Graph", gridVis.panel)
+        pages += new Page("Grid Graph + Tiles", gridWithTilesVis.panel)
         pages += new Page("DAG", DAGVis.pane)
       }
       layout(tabs) = Center
@@ -39,7 +41,7 @@ object FinalProjUI  extends SimpleSwingApplication {
       }
     }
   }
-
+}
   object parameters {
     val param = new GridPanel(3, 1) {
       contents += sizes.panel
@@ -93,15 +95,15 @@ object FinalProjUI  extends SimpleSwingApplication {
   }
 
   object algorithms {
-    val one = new RadioButton("Hamiltonian Path Enumeration")
-    val two = new RadioButton("Path Enumeration")
-    val mutex = new ButtonGroup(one, two)
-    mutex.select(one)
+    val hamPathEnum = new RadioButton("Hamiltonian Path Enumeration")
+    val pathEnum = new RadioButton("Path Enumeration")
+    val mutex = new ButtonGroup(hamPathEnum, pathEnum)
+    mutex.select(hamPathEnum)
 
     val panel = new BoxPanel(Orientation.Vertical) {
       border = CompoundBorder(TitledBorder(EtchedBorder, "Algorithm"), EmptyBorder(5, 5, 5, 10))
       contents ++= mutex.buttons
-      listenTo(one, two)
+      listenTo(hamPathEnum, pathEnum)
     }
 
     def getSelection = () => mutex.selected.get.text
@@ -129,44 +131,50 @@ object FinalProjUI  extends SimpleSwingApplication {
       contents += new BorderPanel {
         layout(build) = Center
       }
-    }
 
-    listenTo(build)
+      listenTo(build)
 
-    reactions += {
-      case ButtonClicked(`build`) =>
+      reactions += {
+        case ButtonClicked(`build`) =>
 
-        buildChoices.mutex.selected match {
+          buildChoices.mutex.selected match {
 
-          case Some(buildChoices.gridGraph) =>
-            System.gc()
-            val newHeight = sizes.height() + 1
-            val newWidth  = sizes.width() + 1
-            algorithms.getSelection() match {
-              case "Hamiltonian Path Enumeration" =>
-                vis.updateVis(newHeight, newWidth)
-                gridVis.panel.canvas.collectPathEdges(1)
-              case "Path Enumeration" =>
-                vis.updateVis(newHeight, newWidth)
-                gridVis.panel.canvas.collectPathEdges(2)
-            }
-            gridVis.setSlider()
+            case Some(buildChoices.gridGraph) =>
+              System.gc()
+              val newHeight = sizes.height() + 1
+              val newWidth  = sizes.width() + 1
+              vis.updateVis(newHeight, newWidth)
+              algorithms.mutex.selected match {
+                case Some(algorithms.hamPathEnum) =>
+                  gridVis.panel.canvas.collectPathEdges(1)
+                case Some(algorithms.pathEnum) =>
+                  gridVis.panel.canvas.collectPathEdges(2)
+              }
+              gridVis.setSlider()
 
-          case Some(buildChoices.gridGraphTilePaths) =>
-            System.gc()
-            val newHeight = sizes.height() + 1
-            val newWidth  = sizes.width() + 1
-            vis.updateVis(newHeight, newWidth)
-            tmpTileLink()
+            case Some(buildChoices.gridGraphTilePaths) =>
+              System.gc()
+              val newHeight = sizes.height() + 1
+              val newWidth  = sizes.width() + 1
+              vis.updateVis(newHeight, newWidth)
+              algorithms.mutex.selected match {
+                case Some(algorithms.hamPathEnum) =>
+                  gridWithTilesVis.panel.canvas.collectPathEdges(1)
+                case Some(algorithms.pathEnum) =>
+                  gridWithTilesVis.panel.canvas.collectPathEdges(2)
+              }
+              gridWithTilesVis.setPathSlider()
+              gridWithTilesVis.setTilePathSlider()
 
-          case Some(buildChoices.dag) =>
-            algorithms.getSelection() match {
-              case "Hamiltonian Path Enumeration" =>
-                DAGVis.pane.canvas.repaintDAG()
-              case "Path Enumeration" =>
-                DAGVis.pane.canvas.repaintDAG()
-            }
-        }
+            case Some(buildChoices.dag) =>
+              algorithms.getSelection() match {
+                case "Hamiltonian Path Enumeration" =>
+                  DAGVis.pane.canvas.repaintDAG()
+                case "Path Enumeration" =>
+                  DAGVis.pane.canvas.repaintDAG()
+              }
+          }
+      }
     }
   }
 
@@ -206,6 +214,72 @@ object FinalProjUI  extends SimpleSwingApplication {
     }
   }
 
+  object gridWithTilesVis {
+    lazy val panel = new BorderPanel {
+      val dim = new Dimension(640, 640)
+      val canvas = new GridGraphTilePathCanvas(dim) {
+        preferredSize = dim
+      }
+      val pathSlider = new Slider {
+        min = 0
+        max = 0
+        majorTickSpacing = 1
+        paintTicks = true
+      }
+      val tilePathSlider = new Slider {
+        min = 0
+        max = 0
+        majorTickSpacing = 1
+        paintTicks = true
+      }
+
+      val sliderPanel = new BorderPanel {
+        layout(tilePathSlider) = North
+        layout(pathSlider) = South
+
+        listenTo(pathSlider, tilePathSlider)
+
+        reactions += {
+          case ValueChanged(`pathSlider`) =>
+            if (canvas.pathEdges.length == 1)
+              canvas.changePath(0)
+            else if (!pathSlider.adjusting && canvas.pathEdges.length != 0)
+              canvas.changePath(pathSlider.value)
+
+          case ValueChanged(`tilePathSlider`) =>
+            val numCurrentTilePaths = canvas.pathsToTilePaths(canvas.byteStr).size
+            if (numCurrentTilePaths == 1)
+              canvas.changeTilePath(0)
+            else if (!tilePathSlider.adjusting && numCurrentTilePaths != 0)
+              canvas.changeTilePath(tilePathSlider.value)
+        }
+      }
+
+      layout(canvas) = Center
+      layout(sliderPanel) = South
+    }
+
+    def setPathSlider() = {
+      panel.pathSlider.max =
+        if (panel.canvas.pathEdges.length == 0)
+          0
+        else
+          panel.canvas.pathEdges.length - 1
+      panel.pathSlider.value = 0
+    }
+
+    def setTilePathSlider() = {
+      val numCurrentTilePaths = panel.canvas.pathsToTilePaths(panel.canvas.byteStr).size
+      panel.tilePathSlider.max =
+        if (numCurrentTilePaths == 0)
+          0
+        else
+          numCurrentTilePaths - 1
+      panel.tilePathSlider.value = 0
+    }
+
+  }
+
   object DAGVis {
     lazy val pane = new ScrollPane {
       val canvas = new DAGCanvas {
@@ -215,6 +289,7 @@ object FinalProjUI  extends SimpleSwingApplication {
     }
   }
 
+  /*
   def tmpTileLink(): Unit = {
     println("tmpTileLink")
     val sq = T1TilePaths.Glue('a'.toInt)
@@ -230,18 +305,23 @@ object FinalProjUI  extends SimpleSwingApplication {
     val e = Tile(cc, cc, cc, cc)
     val f = Tile(nullGlue, cc, nullGlue, cc)
     //val e = Tile(nullGlue, nullGlue, nullGlue, nullGlue)
-    val alpha = TileSet(Set(a, b, c, d, e, f))
-    //val alpha = TileSet(Set(a, b, c))
+    //val alpha = TileSet(Set(a, b, c, d, e, f))
+    val alpha = TileSet(Set(a, b, c, d))
 
-    val hamiltonianPaths = true
+    val hamiltonianPaths = false
     val pathEdges = enumZDDValidPaths(numberLink(vis.grid.graph, vis.h, hamiltonianPaths))
 
-    val m = mapPathToTilePaths(vis.h, pathEdges, vis.grid, alpha)
+    val m = mapPathsToTilePaths(vis.h, pathEdges, vis.grid, alpha)
 
-    m.foreach(println)
+    var totals = 0
+    for ((k, v) <- m)
+      totals += v.length
+
+    println("Totals: "+ totals)
 
   }
-}
+  */
+//}
 
 object vis {
   var grid = GridGraph(2, 2)

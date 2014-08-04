@@ -213,7 +213,7 @@ object T1TilePaths {
   }
 
 
-  def mapPathToTilePaths(h: List[VertexPair], paths: ListBuffer[ListBuffer[Byte]], g: GridGraph, alpha: TileSet): Map[ListBuffer[Byte], ListBuffer[ListBuffer[Tile]]] = {
+  def mapPathsToTilePaths(h: List[VertexPair], paths: ListBuffer[ListBuffer[Byte]], g: GridGraph, alpha: TileSet): Map[ListBuffer[Byte], ListBuffer[ListBuffer[Tile]]] = {
     val edges = g.graph.edges
     val startVertex = h.head.v0
 

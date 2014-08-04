@@ -11,10 +11,17 @@ import com.main.BDD.{algoTwo, enumZDDValidPaths2}
 import scala.collection.mutable.ListBuffer
 import scala.swing._
 
-class GridGraphCanvas(dim: java.awt.Dimension) extends Panel {
+class GridGraphTilePathCanvas(dim: java.awt.Dimension) extends Panel {
 
   var pathEdges = ListBuffer[ListBuffer[Byte]]()
+  var byteStr = ListBuffer[Byte]()
+
+  var pathsToTilePaths = Map[ListBuffer[Byte], ListBuffer[ListBuffer[Tile]]]()
+  var tilePaths = ListBuffer[ListBuffer[Tile]]()
+  var pathSet = Set[Set[Vertex]]()
+
   var currentPathCoords = List[((Int, Int), (Int, Int))]()
+  var currentTileCoords = List[(Int, Int)]()
 
 
   // the height and width of the grid squares
@@ -48,8 +55,10 @@ class GridGraphCanvas(dim: java.awt.Dimension) extends Panel {
 
     xPathAxis = xAxis ::: (xAxis.last + jump) :: Nil
     yPathAxis = yAxis ::: (yAxis.last + jump) :: Nil
-  }
 
+    println("xAxis "+xPathAxis)
+    println("yAxis "+yPathAxis)
+  }
 
   override def paintComponent(g: Graphics2D) {
     updateGraphCanvasFields()
@@ -71,10 +80,59 @@ class GridGraphCanvas(dim: java.awt.Dimension) extends Panel {
     currentPathCoords map { case (u, v) =>
       g.drawLine(xPathAxis(u._1), yPathAxis(u._2), xPathAxis(v._1), yPathAxis(v._2))
     }
+    g.setStroke(stroke.four)
+    g.setColor(zorn.cadmiumRedMedium)
+    g.setFont(new Font("Ariel", java.awt.Font.ITALIC, 14))
+    drawTiles(g)
   }
 
-  def changePath(sliderValue: Int): Unit = {
-    val byteStr = pathEdges(sliderValue)
+
+  def drawTiles(g: Graphics2D): Unit = {
+    def helper(currTileCoords: List[(Int, Int)]): Unit = {
+      currTileCoords match {
+        case Nil =>
+        case head :: tail=>
+          g.drawRect(xPathAxis(head._1)-32, yPathAxis(head._2)-32, jump, jump)
+          helper(tail)
+      }
+    }
+    helper(currentTileCoords)
+  }
+  //var counter = 1
+  /*
+  g.drawString(s"$counter", xPathAxis(head._1)-28, yPathAxis(head._2)+28)
+  val strr = s"${xPathAxis(head._1)},${yPathAxis(head._2)}"
+  g.drawString(strr, xPathAxis(head._1)-28, yPathAxis(head._2))
+  counter += 1
+  */
+
+  def orderedVertexVector(pathSet: Set[Set[Int]], start: Vertex): Vector[Vertex] = {
+    def helper(ps: Set[Set[Int]], u: Vertex): List[Vertex] = {
+      val uv = ps.filter(s => s.contains(u))
+      assert(uv.size == 1)
+      val v = (uv.head - u).head
+
+      if (ps.size == 1)
+        v :: Nil
+      else
+        v :: helper(ps - uv.head, v)
+    }
+    Vector(start) ++ helper(pathSet, start).toVector
+  }
+
+  def updateTilePathsFields(): Unit = {
+    tilePaths = pathsToTilePaths(byteStr)
+    pathSet = buildPathSet(byteStr, vis.grid.graph.edges)
+    val vv = orderedVertexVector(pathSet, vis.h.head.v0)
+    currentTileCoords = vv.toList map (vertex =>
+      vis.grid.vertexToCoord(vertex))
+  }
+
+  def changePath(pathSliderValue: Int): Unit = {
+    byteStr = pathEdges(pathSliderValue)
+
+    updateTilePathsFields()
+    gridWithTilesVis.setTilePathSlider()
 
     val pathMap = byteStr.zipWithIndex filter (x =>
       x._1 == 1) map (index =>
@@ -84,6 +142,11 @@ class GridGraphCanvas(dim: java.awt.Dimension) extends Panel {
       (vis.grid.vertexToCoord(edge.u), vis.grid.vertexToCoord(edge.v)))
 
     repaint()
+  }
+
+  def changeTilePath(tilePathSliderValue: Int): Unit = {
+    val tiles = tilePaths(tilePathSliderValue)
+    println(tiles)
   }
 
   def time[R](block: => R, funcName: String): R = {
@@ -112,19 +175,34 @@ class GridGraphCanvas(dim: java.awt.Dimension) extends Panel {
         println("Algo2 Number of valid paths: " + pathEdges.length + "\n")
     }
 
-    /*
-    case 1 =>
-      val ggV: List[UnderlyingGraph.Vertex] = vis.grid.graph.vertices
-      val h = List(VertexPair(ggV(0), ggV.last))
-      val zddRoot: BDD.Node = time (algoTwo(vis.grid.graph, h), "BDDAlgo2 =>")
-      pathEdges = time (enumZDDValidPaths2(zddRoot), "Path finding =>\t")
-      println("Algo2 Number of valid paths: "+ pathEdges.length +"\n")
-    println("Here in algo1...")
-    val zddRoot: ZDDMain.Node = time (algorithmOne(vis.grid.graph), "Algo1 =>")
-    pathEdges = time (enumZDDValidPaths(zddRoot), "Path finding =>\t")
-    //pathEdges.foreach(println)
-    println("Algo1 Number of valid paths: "+ pathEdges.length +"\n")
-    */
+    collectTilePaths()
+
+  }
+
+  def collectTilePaths(): Unit = {
+    println("tmpTileLink")
+    val sq = T1TilePaths.Glue('a'.toInt)
+    val wt = T1TilePaths.Glue('b'.toInt)
+    val dt = T1TilePaths.Glue('c'.toInt)
+    val ci = T1TilePaths.Glue('d'.toInt)
+    val cc = T1TilePaths.Glue('e'.toInt)
+
+    val a = Tile(nullGlue, nullGlue, sq, wt)
+    val b = Tile(sq, ci, nullGlue, nullGlue)
+    val c = Tile(dt, nullGlue, nullGlue, ci)
+    val d = Tile(nullGlue, wt, dt, nullGlue)
+    val e = Tile(cc, cc, cc, cc)
+    val f = Tile(nullGlue, cc, nullGlue, cc)
+    //val e = Tile(nullGlue, nullGlue, nullGlue, nullGlue)
+    val alpha = TileSet(Set(a, b, c, d, e, f))
+    //val alpha = TileSet(Set(a, b, c, d))
+
+    pathsToTilePaths = mapPathsToTilePaths(vis.h, pathEdges, vis.grid, alpha)
+
+    var totals = 0
+    for ((k, v) <- pathsToTilePaths)
+      totals += v.length
+
+    println("Totals: "+ totals)
   }
 }
-
