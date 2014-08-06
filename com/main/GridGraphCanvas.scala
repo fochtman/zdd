@@ -45,21 +45,27 @@ object GridGraphCanvas {
         yAxis map (y =>
           g.drawRect(x, y, jump, jump)))
 
-      g.setStroke(stroke.roundSixteen)
-      g.setColor(zorn.yellowOchreAlpha)
+      if (currentPath.nonEmpty) {
+        g.setStroke(stroke.roundSixteen)
+        g.setColor(zorn.yellowOchreAlpha)
 
-      val xPathAxis = computePathAxis(xAxis)
-      val yPathAxis = computePathAxis(yAxis)
-      val pathCoords = computePathCoordinates(currentPath)
+        val xPathAxis = computePathAxis(xAxis)
+        val yPathAxis = computePathAxis(yAxis)
+        val pathCoords = computePathCoordinates(currentPath)
 
-      pathCoords map { case (u, v) =>
-        g.drawLine(xPathAxis(u._1), yPathAxis(u._2), xPathAxis(v._1), yPathAxis(v._2))
+        pathCoords map { case (u, v) =>
+          g.drawLine(xPathAxis(u._1), yPathAxis(u._2), xPathAxis(v._1), yPathAxis(v._2))
+        }
       }
     }
 
-    def collectPaths(hamiltonianPath: Boolean): Unit = {
+    def collectPaths(hamiltonianPath: Boolean): Boolean = {
       val zddRoot: ZDDMain.Node = numberLink(vis.grid.graph, vis.h, hamiltonianPath)
       paths = enumZDDValidPaths(zddRoot)
+      if (paths.nonEmpty)
+        true
+      else
+        false
     }
   }
 
@@ -72,10 +78,9 @@ object GridGraphCanvas {
     val jump = dim.getHeight.toInt / 10
 
     override def paintComponent(g: Graphics2D) {
-      g.setBackground(zorn.titaniumWhite)
       g.clearRect(0, 0, size.width, size.height)
+      g.setBackground(zorn.titaniumWhite)
       g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
-
       drawGridAndPath(g, size.width, size.height)
     }
 
@@ -83,7 +88,6 @@ object GridGraphCanvas {
       currentPath = paths(sliderValue).toList
       repaint()
     }
-
   }
 
   class TilePathCanvas(dim: java.awt.Dimension) extends Panel with CanvasFunctions {
@@ -94,54 +98,51 @@ object GridGraphCanvas {
     var pathToTilePaths = Map[List[Byte], ListBuffer[ListBuffer[Tile]]]()
     var tilePaths = ListBuffer[ListBuffer[Tile]]()
     var currentTilePath = ListBuffer[Tile]()
-    //var pathSet = Set[Set[Vertex]]()
     var tileToColor = scala.collection.mutable.HashMap[Tile, java.awt.Color]()
 
     // the height and width of the grid squares
     val jump = dim.getHeight.toInt / 10
 
     override def paintComponent(g: Graphics2D) {
-      g.setBackground(zorn.ivoryBlack)
+      g.setBackground(zorn.blend)
       g.clearRect(0, 0, size.width, size.height)
       g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
-
       drawGridAndPath(g, size.width, size.height)
-
       g.setStroke(stroke.four)
       g.setFont(new Font("Ariel", java.awt.Font.ITALIC, 14))
       drawTiles(g, size.width, size.height)
     }
 
     def computeTilePathCoordinates(path: List[Byte]): List[(Int, Int)] = {
-      tilePaths = pathToTilePaths(path)
       val pathSet = buildPathSet(path, vis.grid.graph.edges)
       orderedVertexList(pathSet, vis.h.head.v0) map (vertex =>
         vis.grid.vertexToCoord(vertex))
-
     }
 
     def drawTiles(g: Graphics2D, screenWidth: Int, screenHeight: Int): Unit = {
-      val xAxis = computeAxis(screenWidth, vis.grid.colNum)
-      val yAxis = computeAxis(screenHeight, vis.grid.rowNum)
-      val xPathAxis = computePathAxis(xAxis)
-      val yPathAxis = computePathAxis(yAxis)
-      val currentTileCoords = computeTilePathCoordinates(currentPath)
+      if (currentTilePath.nonEmpty) {
+        val xAxis = computeAxis(screenWidth, vis.grid.colNum)
+        val yAxis = computeAxis(screenHeight, vis.grid.rowNum)
+        val xPathAxis = computePathAxis(xAxis)
+        val yPathAxis = computePathAxis(yAxis)
+        val currentTileCoords = computeTilePathCoordinates(currentPath)
 
-      for ((coord, tile) <- currentTileCoords zip currentTilePath) {
-        val x = xPathAxis(coord._1)
-        val y = yPathAxis(coord._2)
+        for ((coord, tile) <- currentTileCoords zip currentTilePath) {
+          val x = xPathAxis(coord._1)
+          val y = yPathAxis(coord._2)
 
-        g.setColor(tileToColor(tile))
-        g.fillRect(x-32, y-32, jump, jump)
+          g.setColor(tileToColor(tile))
+          g.fillRect(x - 32, y - 32, jump, jump)
 
-        g.setStroke(stroke.four)
-        g.setColor(zorn.ivoryBlack)
-        g.drawRect(x-32, y-32, jump, jump)
+          g.setStroke(stroke.four)
+          g.setColor(zorn.ivoryBlack)
+          g.drawRect(x - 32, y - 32, jump, jump)
 
-        g.drawString(s"${tile.north}", x-5, y-20)
-        g.drawString(s"${tile.east}", x+20, y+5)
-        g.drawString(s"${tile.south}", x-5, y+28)
-        g.drawString(s"${tile.west}", x-28, y+5)
+          g.drawString(s"${tile.north}", x - 5, y - 20)
+          g.drawString(s"${tile.east}", x + 20, y + 5)
+          g.drawString(s"${tile.south}", x - 5, y + 28)
+          g.drawString(s"${tile.west}", x - 28, y + 5)
+        }
       }
     }
 
@@ -150,7 +151,6 @@ object GridGraphCanvas {
         val uv = ps.filter(s => s.contains(u))
         assert(uv.size == 1)
         val v = (uv.head - u).head
-
         if (ps.size == 1)
           v :: Nil
         else
@@ -161,18 +161,22 @@ object GridGraphCanvas {
 
     def changePath(pathSliderValue: Int): Unit = {
       currentPath = paths(pathSliderValue).toList
+      tilePaths = pathToTilePaths(currentPath)
+      gridWithTilesVis.setTilePathSlider()
       repaint()
     }
 
     def changeTilePath(tilePathSliderValue: Int): Unit = {
-      currentTilePath = tilePaths(tilePathSliderValue)
+      currentTilePath =
+        if (tilePaths.nonEmpty)
+          tilePaths(tilePathSliderValue)
+        else
+          ListBuffer[Tile]()
       repaint()
     }
 
-    def collectTilePaths(alpha: TileSet): Unit = {
+    def buildTilePaths(alpha: TileSet): Unit = {
       pathToTilePaths = mapPathsToTilePaths(vis.h, paths, vis.grid, alpha)
-
-      tilePaths = pathToTilePaths(currentPath)
 
       var totals = 0
       for ((k, v) <- pathToTilePaths)
@@ -182,8 +186,7 @@ object GridGraphCanvas {
 
       assert(alpha.tileSet.size <= zorn.blended.length)
       tileToColor.clear()
-      tileToColor ++= alpha.tileSet zip zorn.blended.reverse
+      tileToColor ++= alpha.tileSet zip zorn.blended.distinct.reverse
     }
   }
-
 }

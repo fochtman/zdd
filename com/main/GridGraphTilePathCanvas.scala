@@ -10,7 +10,7 @@ import scala.collection.mutable.ListBuffer
 import scala.swing._
 
 class GridGraphTilePathCanvas(dim: java.awt.Dimension) extends Panel {
-
+/*
   var pathEdges = ListBuffer[ListBuffer[Byte]]()
   var byteStr = ListBuffer[Byte]()
 
@@ -162,4 +162,5 @@ class GridGraphTilePathCanvas(dim: java.awt.Dimension) extends Panel {
     tileToColor.clear()
     tileToColor ++= alpha.tileSet zip zorn.blended.reverse
   }
+  */
 }
