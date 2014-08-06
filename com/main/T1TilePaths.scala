@@ -155,7 +155,7 @@ object T1TilePaths {
     helper(pathSet, start).toVector
   }
 
-  def buildPathSet(path: ListBuffer[Byte], edges: List[Edge]): Set[Set[Vertex]] = {
+  def buildPathSet(path: List[Byte], edges: List[Edge]): Set[Set[Vertex]] = {
     val pathEdgeIndices =
       (path.zipWithIndex filter (x =>
         x._1 == 1)) map (y => y._2)
@@ -213,17 +213,20 @@ object T1TilePaths {
   }
 
 
-  def mapPathsToTilePaths(h: List[VertexPair], paths: ListBuffer[ListBuffer[Byte]], g: GridGraph, alpha: TileSet): Map[ListBuffer[Byte], ListBuffer[ListBuffer[Tile]]] = {
+  //def mapPathsToTilePaths(h: List[VertexPair], paths: ListBuffer[ListBuffer[Byte]], g: GridGraph, alpha: TileSet): Map[ListBuffer[Byte], ListBuffer[ListBuffer[Tile]]] = {
+  def mapPathsToTilePaths(h: List[VertexPair], paths: ListBuffer[ListBuffer[Byte]], g: GridGraph, alpha: TileSet): Map[List[Byte], ListBuffer[ListBuffer[Tile]]] = {
     val edges = g.graph.edges
     val startVertex = h.head.v0
 
     val tilePathsList =
       for (p <- paths) yield {
-        val pathSet = buildPathSet(p, edges)
+        val pathSet = buildPathSet(p.toList, edges)
         val directions = directionVector(pathSet, startVertex, g)
         val tileFrontier = buildTileFrontier(directions, alpha)
         tilePaths(directions, tileFrontier)
       }
-    Map(paths zip tilePathsList:_*)
+    val pathsWithInnerList = paths map (_.toList)
+    Map(pathsWithInnerList zip tilePathsList:_*)
+    //Map(paths zip tilePathsList:_*)
   }
 }

@@ -1,88 +1,189 @@
 package com.main
 
 import java.awt.RenderingHints
-import java.lang.System.{currentTimeMillis => _time}
 import com.main.UnderlyingGraph._
 import com.main.ZDDMain._
 import com.main.T1TilePaths._
-import com.main.BDD.{algoTwo, enumZDDValidPaths2}
 import scala.collection.mutable.ListBuffer
 import scala.swing._
 
-class GridGraphCanvas(dim: java.awt.Dimension) extends Panel {
+object GridGraphCanvas {
 
-  var pathEdges = ListBuffer[ListBuffer[Byte]]()
-  var currentPath = List[Byte]()
+  trait CanvasFunctions {
+    val jump: Int
+    var paths: ListBuffer[ListBuffer[Byte]]
+    var currentPath: List[Byte]
 
-  // the height and width of the grid squares
-  private val jump = dim.getHeight.toInt / 10
+    def computeAxis(screenDim: Int, totalAxisUnits: Int): Vector[Int] = {
+      val axisLength = (totalAxisUnits - 1) * jump
+      val axisOrigin = (screenDim - axisLength) / 2
+      val axisMax = axisOrigin + axisLength
+      (Range(axisOrigin, axisMax) by jump).toVector
+    }
 
-  def computeAxis(totalAxisUnits: Int): Vector[Int] = {
-    val axisOrigin = (size.width - (jump * (totalAxisUnits - 1))) / 2
-    val axisMax = axisOrigin + (totalAxisUnits - 1) * jump
-    (Range(axisOrigin, axisMax) by jump).toVector
-  }
+    def computePathAxis(axis: Vector[Int]): Vector[Int] = {
+      axis :+ (axis.last + jump)
+    }
 
-  def computePathAxis(axis: Vector[Int]): Vector[Int] = {
-    axis :+ (axis.last + jump)
-  }
+    def computePathCoordinates(path: List[Byte]): List[((Int, Int), (Int, Int))] = {
+      val pathMap = path.zipWithIndex filter (x =>
+        x._1 == 1) map (index =>
+        vis.grid.graph.edges(index._2))
 
-  def computePathCoordinates(path: List[Byte]): List[((Int, Int), (Int, Int))] = {
-    val pathMap = path.zipWithIndex filter (x =>
-      x._1 == 1) map (index =>
-      vis.grid.graph.edges(index._2))
+      pathMap map (edge =>
+        (vis.grid.vertexToCoord(edge.u), vis.grid.vertexToCoord(edge.v)))
+    }
 
-    pathMap map (edge =>
-      (vis.grid.vertexToCoord(edge.u), vis.grid.vertexToCoord(edge.v)))
-  }
+    def drawGridAndPath(g: Graphics2D, screenWidth: Int, screenHeight: Int): Unit = {
+      g.setStroke(stroke.eight)
+      g.setColor(zorn.ivoryBlack)
 
-  override def paintComponent(g: Graphics2D) {
-    g.setBackground(zorn.titaniumWhite)
-    g.clearRect(0, 0, size.width, size.height)
-    g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
+      val xAxis = computeAxis(screenWidth, vis.grid.colNum)
+      val yAxis = computeAxis(screenHeight, vis.grid.rowNum)
 
-    g.setStroke(stroke.eight)
-    g.setColor(zorn.ivoryBlack)
+      xAxis map (x =>
+        yAxis map (y =>
+          g.drawRect(x, y, jump, jump)))
 
-    val xAxis = computeAxis(vis.grid.colNum)
-    val yAxis = computeAxis(vis.grid.rowNum)
+      g.setStroke(stroke.roundSixteen)
+      g.setColor(zorn.yellowOchreAlpha)
 
-    xAxis map (x =>
-      yAxis map (y =>
-        g.drawRect(x, y, jump, jump)))
+      val xPathAxis = computePathAxis(xAxis)
+      val yPathAxis = computePathAxis(yAxis)
+      val pathCoords = computePathCoordinates(currentPath)
 
-    g.setStroke(stroke.roundSixteen)
-    g.setColor(zorn.yellowOchreAlpha)
+      pathCoords map { case (u, v) =>
+        g.drawLine(xPathAxis(u._1), yPathAxis(u._2), xPathAxis(v._1), yPathAxis(v._2))
+      }
+    }
 
-    val xPathAxis = computePathAxis(xAxis)
-    val yPathAxis = computePathAxis(yAxis)
-    val pathCoords = computePathCoordinates(currentPath)
-
-    pathCoords map { case (u, v) =>
-      g.drawLine(xPathAxis(u._1), yPathAxis(u._2), xPathAxis(v._1), yPathAxis(v._2))
+    def collectPaths(hamiltonianPath: Boolean): Unit = {
+      val zddRoot: ZDDMain.Node = numberLink(vis.grid.graph, vis.h, hamiltonianPath)
+      paths = enumZDDValidPaths(zddRoot)
     }
   }
 
-  def changePath(sliderValue: Int): Unit = {
-    currentPath = pathEdges(sliderValue).toList
-    repaint()
+  class PathCanvas(dim: java.awt.Dimension) extends Panel with CanvasFunctions {
+
+    var paths = ListBuffer[ListBuffer[Byte]]()
+    var currentPath = List[Byte]()
+
+    // the height and width of the grid squares
+    val jump = dim.getHeight.toInt / 10
+
+    override def paintComponent(g: Graphics2D) {
+      g.setBackground(zorn.titaniumWhite)
+      g.clearRect(0, 0, size.width, size.height)
+      g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
+
+      drawGridAndPath(g, size.width, size.height)
+    }
+
+    def changePath(sliderValue: Int): Unit = {
+      currentPath = paths(sliderValue).toList
+      repaint()
+    }
+
   }
 
-  def collectPathEdges(choice: Int): Unit = {
-    val ggV: List[UnderlyingGraph.Vertex] = vis.grid.graph.vertices
-    val h = List(VertexPair(ggV(0), ggV.last))
+  class TilePathCanvas(dim: java.awt.Dimension) extends Panel with CanvasFunctions {
 
-    choice match {
-      case 1 =>
-        val hamiltonianPaths = true
-        val zddRoot: ZDDMain.Node = numberLink(vis.grid.graph, h, hamiltonianPaths)
-        pathEdges = enumZDDValidPaths(zddRoot)
+    var paths = ListBuffer[ListBuffer[Byte]]()
+    var currentPath = List[Byte]()
 
-      case 2 =>
-        val hamiltonianPaths = false
-        val zddRoot: ZDDMain.Node = numberLink(vis.grid.graph, h, hamiltonianPaths)
-        pathEdges = enumZDDValidPaths(zddRoot)
+    var pathToTilePaths = Map[List[Byte], ListBuffer[ListBuffer[Tile]]]()
+    var tilePaths = ListBuffer[ListBuffer[Tile]]()
+    var currentTilePath = ListBuffer[Tile]()
+    //var pathSet = Set[Set[Vertex]]()
+    var tileToColor = scala.collection.mutable.HashMap[Tile, java.awt.Color]()
+
+    // the height and width of the grid squares
+    val jump = dim.getHeight.toInt / 10
+
+    override def paintComponent(g: Graphics2D) {
+      g.setBackground(zorn.ivoryBlack)
+      g.clearRect(0, 0, size.width, size.height)
+      g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
+
+      drawGridAndPath(g, size.width, size.height)
+
+      g.setStroke(stroke.four)
+      g.setFont(new Font("Ariel", java.awt.Font.ITALIC, 14))
+      drawTiles(g, size.width, size.height)
+    }
+
+    def computeTilePathCoordinates(path: List[Byte]): List[(Int, Int)] = {
+      tilePaths = pathToTilePaths(path)
+      val pathSet = buildPathSet(path, vis.grid.graph.edges)
+      orderedVertexList(pathSet, vis.h.head.v0) map (vertex =>
+        vis.grid.vertexToCoord(vertex))
+
+    }
+
+    def drawTiles(g: Graphics2D, screenWidth: Int, screenHeight: Int): Unit = {
+      val xAxis = computeAxis(screenWidth, vis.grid.colNum)
+      val yAxis = computeAxis(screenHeight, vis.grid.rowNum)
+      val xPathAxis = computePathAxis(xAxis)
+      val yPathAxis = computePathAxis(yAxis)
+      val currentTileCoords = computeTilePathCoordinates(currentPath)
+
+      for ((coord, tile) <- currentTileCoords zip currentTilePath) {
+        val x = xPathAxis(coord._1)
+        val y = yPathAxis(coord._2)
+
+        g.setColor(tileToColor(tile))
+        g.fillRect(x-32, y-32, jump, jump)
+
+        g.setStroke(stroke.four)
+        g.setColor(zorn.ivoryBlack)
+        g.drawRect(x-32, y-32, jump, jump)
+
+        g.drawString(s"${tile.north}", x-5, y-20)
+        g.drawString(s"${tile.east}", x+20, y+5)
+        g.drawString(s"${tile.south}", x-5, y+28)
+        g.drawString(s"${tile.west}", x-28, y+5)
+      }
+    }
+
+    def orderedVertexList(pathSet: Set[Set[Int]], start: Vertex): List[Vertex] = {
+      def helper(ps: Set[Set[Int]], u: Vertex): List[Vertex] = {
+        val uv = ps.filter(s => s.contains(u))
+        assert(uv.size == 1)
+        val v = (uv.head - u).head
+
+        if (ps.size == 1)
+          v :: Nil
+        else
+          v :: helper(ps - uv.head, v)
+      }
+      start :: helper(pathSet, start)
+    }
+
+    def changePath(pathSliderValue: Int): Unit = {
+      currentPath = paths(pathSliderValue).toList
+      repaint()
+    }
+
+    def changeTilePath(tilePathSliderValue: Int): Unit = {
+      currentTilePath = tilePaths(tilePathSliderValue)
+      repaint()
+    }
+
+    def collectTilePaths(alpha: TileSet): Unit = {
+      pathToTilePaths = mapPathsToTilePaths(vis.h, paths, vis.grid, alpha)
+
+      tilePaths = pathToTilePaths(currentPath)
+
+      var totals = 0
+      for ((k, v) <- pathToTilePaths)
+        totals += v.length
+
+      println("Totals: "+ totals)
+
+      assert(alpha.tileSet.size <= zorn.blended.length)
+      tileToColor.clear()
+      tileToColor ++= alpha.tileSet zip zorn.blended.reverse
     }
   }
+
 }
-
