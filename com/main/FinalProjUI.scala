@@ -1,23 +1,14 @@
 package com.main
 
-import java.awt.BasicStroke
-
 import com.main.UnderlyingGraph._
 import com.main.GridGraphCanvas._
-import com.main.ZDDMain._
 import com.main.T1TilePaths._
-
+import java.awt.BasicStroke
 import scala.swing.BorderPanel.Position._
 import scala.swing.Swing._
 import scala.swing.TabbedPane._
 import scala.swing._
 import scala.swing.event._
-
-//import com.main.BDD.{algoTwo, enumZDDValidPaths2}
-//import java.lang.System.{currentTimeMillis => _time}
-//import scala.collection.mutable.{HashMap, ListBuffer}
-//import scala.swing.GridBagPanel.Fill
-
 
 object FinalProjUI  extends SimpleSwingApplication {
   def top = new MainFrame {
@@ -143,6 +134,7 @@ object FinalProjUI  extends SimpleSwingApplication {
                 true
               case Some(algorithms.pathEnum) =>
                 false
+              case _ => throw new NoSuchElementException
             }
           vis.updateVis(sizes.height(), sizes.width())
 
@@ -150,14 +142,13 @@ object FinalProjUI  extends SimpleSwingApplication {
 
             case Some(buildChoices.gridGraph) =>
               System.gc()
-              val pathsCollected = gridVis.panel.canvas.collectPaths(hamiltonianPath)
-              if (!pathsCollected) gridVis.panel.canvas.currentPath = Nil
-              gridVis.setSlider()
+              gridVis.panel.canvas.collectPaths(hamiltonianPath)
+              gridVis.panel.canvas.setSlider()
 
             case Some(buildChoices.gridGraphTilePaths) =>
               System.gc()
               gridWithTilesVis.panel.canvas.collectPaths(hamiltonianPath)
-              gridWithTilesVis.panel.canvas.buildTilePaths(tileSets.beta)
+              gridWithTilesVis.panel.canvas.buildTilePaths(tileSets.alpha)
               gridWithTilesVis.setPathSlider()
               gridWithTilesVis.setTilePathSlider()
 
@@ -168,6 +159,8 @@ object FinalProjUI  extends SimpleSwingApplication {
                 case "Path Enumeration" =>
                   DAGVis.pane.canvas.repaintDAG()
               }
+
+            case _ => throw new NoSuchElementException
           }
       }
     }
@@ -175,47 +168,45 @@ object FinalProjUI  extends SimpleSwingApplication {
 
   object gridVis {
     lazy val panel = new BorderPanel {
+
       val dim = new Dimension(640, 640)
       val canvas = new PathCanvas(dim) {
         preferredSize = dim
-      }
-      val slider = new Slider {
-        min = 0
-        max = 0
-        majorTickSpacing = 1
-        paintTicks = true
-      }
 
-      layout(canvas) = Center
-      layout(slider) = South
-      listenTo(slider)
-
-      reactions += {
-        case ValueChanged(`slider`) =>
-          if (!slider.adjusting && canvas.paths.length != 0)
-            canvas.changePath(slider.value)
-      }
-    }
-
-    def setSlider() = {
-      val (value, max) =
-        if (panel.canvas.paths.length == 0)
-          (0, 0)
-        else if (panel.canvas.paths.length == 1) {
-          panel.canvas.changePath(0)
-          (0, 0)
-        } else {
-          (0, panel.canvas.paths.length - 1)
+        val slider = new Slider {
+          min = 0
+          max = 0
+          majorTickSpacing = 1
+          paintTicks = true
         }
-      panel.slider.value = value
-      panel.slider.max = max
+
+        listenTo(slider)
+        reactions += {
+          case ValueChanged(`slider`) =>
+            if (!slider.adjusting && paths.length != 0)
+              changePath(slider.value)
+        }
+
+        def setSlider(): Unit = {
+          slider.value = 0
+          slider.max =
+            if (paths.length >= 1)
+              paths.length - 1
+            else
+              0
+          if (paths.length == 1)
+            changePath(0)
+        }
+      }
+      layout(canvas) = Center
+      layout(canvas.slider) = South
     }
   }
 
   object gridWithTilesVis {
     lazy val panel = new BorderPanel {
       val dim = new Dimension(640, 640)
-      val canvas = new TilePathCanvas(dim) {
+      var canvas = new TilePathCanvas(dim) {
         preferredSize = dim
       }
       val pathSlider = new Slider {
@@ -241,7 +232,7 @@ object FinalProjUI  extends SimpleSwingApplication {
 
         reactions += {
           case ValueChanged(`pathSlider`) =>
-            if (!pathSlider.adjusting)
+            if (!pathSlider.adjusting && canvas.paths.length != 0)
               canvas.changePath(pathSlider.value)
 
           case ValueChanged(`tilePathSlider`) =>
@@ -254,20 +245,16 @@ object FinalProjUI  extends SimpleSwingApplication {
       layout(sliderPanel) = South
     }
 
-    def setPathSlider() = {
-      val (value, max) =
-        if (panel.canvas.paths.length == 0)
-          (0, 0)
-        else if (panel.canvas.paths.length == 1) {
-          (0, 0)
-        } else {
-          (0, panel.canvas.paths.length - 1)
-        }
-      panel.pathSlider.value = value
-      panel.pathSlider.max = max
+    def setPathSlider(): Unit = {
+      panel.pathSlider.value = 0
+      panel.pathSlider.max =
+        if (panel.canvas.paths.length >= 1)
+          panel.canvas.paths.length - 1
+        else
+          0
     }
 
-    def setTilePathSlider() = {
+    def setTilePathSlider(): Unit = {
       val currPath = panel.canvas.currentPath
       if (panel.canvas.pathToTilePaths.contains(currPath)) {
         val tilePathLengths = panel.canvas.pathToTilePaths(currPath).length
@@ -279,6 +266,9 @@ object FinalProjUI  extends SimpleSwingApplication {
           panel.tilePathSlider.value = 0
           panel.tilePathSlider.max = tilePathLengths - 1
         }
+      } else {
+        panel.tilePathSlider.value = 0
+        panel.tilePathSlider.max = 0
       }
     }
   }

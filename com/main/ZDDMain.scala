@@ -1,9 +1,7 @@
 package com.main
 
-import java.lang.System.{currentTimeMillis => _time}
 import UnderlyingGraph._
 import scala.annotation.tailrec
-import scala.collection.immutable.ListMap
 import scala.collection.mutable.{ListBuffer, Set => FrontierSet}
 
 object ZDDMain {
@@ -69,7 +67,7 @@ object ZDDMain {
     override def hashCode: Int = {
       41 * (
         41 + edgeLabel.hashCode
-        ) + mates.hashCode
+      ) + mates.hashCode
     }
 
     override def toString = "NODE_[" + edgeLabel + "](" + mates + ") lo(" + zeroChild + ") hi(" + oneChild + ")]__"
@@ -106,7 +104,8 @@ object ZDDMain {
   }
 
   def setupFrontier(g: Graph, domain: Map[Int, List[Vertex]]) = {
-    val rootMates: Map[Vertex, Vertex] = ListMap(domain(0) zip g.vertices: _*)
+    //val rootMates: Map[Vertex, Vertex] = ListMap(domain(0) zip g.vertices: _*)
+    val rootMates: Map[Vertex, Vertex] = Map(domain(0) zip g.vertices: _*)
     val root = Node(g.edges(0), rootMates)
     val frontier = scala.collection.mutable.HashMap[Int, FrontierSet[Node]](0 -> FrontierSet(root))
     Range(1, g.edges.length) map (i =>
@@ -161,9 +160,6 @@ object ZDDMain {
   }
 
   def numberLink(g: Graph, h: List[VertexPair], hamiltonianPaths: Boolean): Node = {
-    val startT = _time
-    var t = _time
-
     val edges = g.edges.toVector
     val vertices = g.vertices
 
@@ -181,12 +177,6 @@ object ZDDMain {
 
     val updateMates = true
     val dontUpdateMates = false
-
-    val setupT = _time - t
-
-    var zeroChildT = ListBuffer[Long]()
-    var oneChildT = ListBuffer[Long]()
-
 
     def getNode(i: Int, updateMatesChoice: Boolean, nMates: Map[Vertex, Vertex]): Node = {
       val currentEdge = edges(i)
@@ -354,33 +344,13 @@ object ZDDMain {
     End oneChild calculations
      */
 
-    var counter = 0 // test variable, to remove eventually
-
     /*
     Main loop of numLink function
      */
     for (i <- edgeIndices; n <- frontier(i)) {
-      counter += 1
-
-      t = _time //zeroChild time
       n.zeroChild = decideZeroChild(i, n)
-      zeroChildT += (_time - t)
-
-      t = _time //oneChildP time
       n.oneChild = decideOneChild(i, n)
-      oneChildT += (_time - t)
-
     }
-
-    /*
-    println("setupT: " + setupT)
-    println("zeroChildT: " + zeroChildT.sum)
-    println("oneChildT: " + oneChildT.sum)
-    println("sumT: " + (zeroChildT.sum + oneChildT.sum + setupT))
-    println("total: " + (_time - startT))
-    println("counter: " + counter)
-    */
-
     frontier(0).head
   }
 }
