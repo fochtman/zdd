@@ -59,13 +59,13 @@ object GridGraphCanvas {
       }
     }
 
-    def collectPaths(hamiltonianPath: Boolean): Boolean = {
+    def collectPaths(hamiltonianPath: Boolean): Unit = {
       val zddRoot: ZDDMain.Node = numberLink(vis.grid.graph, vis.h, hamiltonianPath)
       paths = enumZDDValidPaths(zddRoot)
       if (paths.nonEmpty)
-        true
+        currentPath = paths(0).toList
       else
-        false
+        currentPath = List[Byte]()
     }
   }
 
@@ -73,8 +73,6 @@ object GridGraphCanvas {
 
     var paths = ListBuffer[ListBuffer[Byte]]()
     var currentPath = List[Byte]()
-
-    // the height and width of the grid squares
     val jump = dim.getHeight.toInt / 10
 
     override def paintComponent(g: Graphics2D) {
@@ -120,7 +118,7 @@ object GridGraphCanvas {
     }
 
     def drawTiles(g: Graphics2D, screenWidth: Int, screenHeight: Int): Unit = {
-      if (currentTilePath.nonEmpty) {
+      if (currentPath.nonEmpty && currentTilePath.nonEmpty) {
         val xAxis = computeAxis(screenWidth, vis.grid.colNum)
         val yAxis = computeAxis(screenHeight, vis.grid.rowNum)
         val xPathAxis = computePathAxis(xAxis)
@@ -160,9 +158,14 @@ object GridGraphCanvas {
     }
 
     def changePath(pathSliderValue: Int): Unit = {
-      currentPath = paths(pathSliderValue).toList
-      tilePaths = pathToTilePaths(currentPath)
-      gridWithTilesVis.setTilePathSlider()
+      if (paths.length != 0) {
+        currentPath = paths(pathSliderValue).toList
+        tilePaths = pathToTilePaths(currentPath)
+        gridWithTilesVis.setTilePathSlider()
+      } else {
+        currentPath = List[Byte]()
+        tilePaths = ListBuffer[ListBuffer[Tile]]()
+      }
       repaint()
     }
 
@@ -177,6 +180,11 @@ object GridGraphCanvas {
 
     def buildTilePaths(alpha: TileSet): Unit = {
       pathToTilePaths = mapPathsToTilePaths(vis.h, paths, vis.grid, alpha)
+
+      if (pathToTilePaths.contains(currentPath))
+        tilePaths = pathToTilePaths(currentPath)
+      else
+        tilePaths = ListBuffer[ListBuffer[Tile]]()
 
       var totals = 0
       for ((k, v) <- pathToTilePaths)
