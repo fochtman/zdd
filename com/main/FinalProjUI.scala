@@ -155,9 +155,9 @@ object FinalProjUI  extends SimpleSwingApplication {
             case Some(buildChoices.dag) =>
               algorithms.getSelection() match {
                 case "Hamiltonian Path Enumeration" =>
-                  DAGVis.pane.canvas.repaintDAG()
+                  DAGVis.pane.canvas.buildDAG(true)
                 case "Path Enumeration" =>
-                  DAGVis.pane.canvas.repaintDAG()
+                  DAGVis.pane.canvas.buildDAG(false)
               }
 
             case _ => throw new NoSuchElementException

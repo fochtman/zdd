@@ -34,8 +34,6 @@ class DAGCanvas extends Panel {
   var DAGEdges = List[DAGEdge]()
   var DAGNodes = List[DAGLeaf]()
 
-  //val dummyLeaf = DAGLeaf(fullJump, fullJump, nodeWH, nodeWH)
-  //var currentDAG = List[DAG](dummyLeaf)
 
   def drawDAGEdges(g: Graphics2D, node: DAG): Unit = {
 
@@ -59,7 +57,7 @@ class DAGCanvas extends Panel {
           helper(lo)
           helper(hi)
 
-        case _ =>
+        case _ => println("helper drawDAGEdges here")
       }
     }
 
@@ -86,7 +84,7 @@ class DAGCanvas extends Panel {
     g.setColor(zorn.ivoryBlack)
 
     g.setStroke(stroke.four)
-    //drawDAGEdges(g, currentDAG.head)
+    drawDAGEdges(g, DAGNodes.head)
 
     g.setStroke(stroke.four)
     DAGNodes map (n =>
@@ -95,46 +93,45 @@ class DAGCanvas extends Panel {
 
   }
 
-  def getNodesPerLevel(depth: Int): scala.collection.mutable.HashMap[Int, Int] = {
-    val npl = scala.collection.mutable.HashMap[Int, Int]()
-    Range(1, depth) map (i =>
-      npl(i) = 0)
+  def nodesPerLevel(root: Node, depth: Int): Array[Int] = {
+    val nodesAtLevel = new Array[Int](depth)
 
     def helper(node: ZDD, i: Int): Unit = {
       node match {
         case Node(_,_, lo: Node, hi: Node) =>
-          npl(i) += 1
+          nodesAtLevel(i) += 1
           helper(lo, i+1)
           helper(hi, i+1)
 
         case Node(_, _, lo: Terminal, hi: Node) =>
-          npl(i) += 1
+          nodesAtLevel(i) += 1
           helper(hi, i+1)
 
         case Node(_, _, lo: Node, hi: Terminal) =>
-          npl(i) += 1
+          nodesAtLevel(i) += 1
           helper(lo, i+1)
 
         case Node(_, _, lo: Terminal, hi: Terminal) =>
-          npl(i) += 1
+          nodesAtLevel(i) += 1
 
         case _ =>
       }
     }
 
-    helper(vis.root, 1)
-    npl(depth) = 2
-    npl
+    helper(root, 0)
+    nodesAtLevel(depth-1) = 2
+    nodesAtLevel.foreach(println)
+    nodesAtLevel
   }
 
-  def collectDAGEdges(root: DAG, zero: DAG, one: DAG, npl: HashMap[Int, Int]): List[DAGLeaf] = {
+  def collectDAGEdges(root: Node, nodesAtLevel: Array[Int]): List[DAGLeaf] = {
 
     val half = nodeWH / 2
     val nodeCenter = (n: DAG) => (n.x + half, n.y + half)
 
     def buildNodeCore(i: Int): DAGLeaf = {
-      val x = npl(i)
-      npl(i) -= 1
+      val x = nodesAtLevel(i)
+      nodesAtLevel(i) -= 1
       DAGLeaf(x*fullJump, i*fullJump, nodeWH, nodeWH)
     }
 
@@ -143,11 +140,7 @@ class DAGCanvas extends Panel {
         case Node(_, _, lo: Node, hi: Node) =>
           val hiNode = buildNodeCore(i)
           val loNode = buildNodeCore(i)
-
-          /*
-          Note!! The issue with algorithmTwo seems to be with getting the lo child
-           */
-          loNode :: hiNode :: helper(hi, i+1) //::: helper(lo, i+1)
+          loNode :: hiNode :: helper(hi, i+1) ::: helper(lo, i+1)
 
         case Node(_, _, `zeroTerminal`, hi: Node) =>
           val hiNode = buildNodeCore(i)
@@ -179,34 +172,19 @@ class DAGCanvas extends Panel {
 
         case Node(_, _, `oneTerminal`, `oneTerminal`) =>
           Nil
-
-        /*
-        case Node(_, _, w, h, lo: DAG, hi: DAG) =>
-          val parent = nodeCenter(n)
-
-          val leftChild = nodeCenter(lo)
-          g.drawLine(parent._1, parent._2, leftChild._1, leftChild._2)
-
-          val rightChild = nodeCenter(hi)
-          g.drawLine(parent._1, parent._2, rightChild._1, rightChild._2)
-
-          helper(lo)
-          helper(hi)
-        */
-        //case _ =>
       }
     }
 
-    helper(vis.root, 2)
+    helper(root, 2)
   }
 
-  def repaintDAG(): Unit = {
+  def buildDAG(hamPath: Boolean): Unit = {
+    val zddRoot: ZDDMain.Node = numberLink(vis.grid.graph, vis.h, hamPath)
     val depth = vis.grid.graph.edges.length + 1
-    val numNodesAtLevel = getNodesPerLevel(depth)
-    println(numNodesAtLevel)
-
-    val max = numNodesAtLevel.values.max
-    println(max)
+    val numNodesAtLevel = nodesPerLevel(zddRoot, depth)
+    println("numNodesAtLevel: "+numNodesAtLevel)
+    val max = numNodesAtLevel.max
+    println("max value: "+max)
 
     val center = max * fullJump // 2
     val bottom = (depth + 1) * fullJump
@@ -215,15 +193,7 @@ class DAGCanvas extends Panel {
     val zero = DAGLeaf(center - fullJump, bottom, nodeWH, nodeWH)
     val one = DAGLeaf(center + fullJump, bottom, nodeWH, nodeWH)
 
-    //DAGNodes = List(root, zero, one)
-
-    //DAGEdges =
-    DAGNodes = root :: zero :: one :: Nil ::: collectDAGEdges(root, zero, one, numNodesAtLevel)
-    println("DAGNodes: ")
-    DAGNodes.foreach(println)
-    // gather number of nodes per level
-    //currentDAG = List(DAGNode(startX, startY, nodeWH, nodeWH, DAGLeaf(startX - jump, startY + jump, nodeWH, nodeWH), DAGLeaf(startX + jump, startY + jump, nodeWH, nodeWH)))
-    repaint()
+    DAGNodes = root :: zero :: one :: Nil ::: collectDAGEdges(zddRoot, numNodesAtLevel)
   }
 }
 
