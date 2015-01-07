@@ -1,5 +1,3 @@
-package com.main
-
 object UnderlyingGraph {
 
   type Vertex = Int

@@ -1,3 +1,7 @@
+
+class ZDDSuite {}
+
+/*
 package com.test
 
 import com.main.{ZDDMain, UnderlyingGraph}
@@ -107,3 +111,4 @@ class ZDDSuite extends FeatureSpec with GivenWhenThen {
   */
 
 }
+*/

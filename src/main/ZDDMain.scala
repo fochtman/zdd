@@ -1,5 +1,3 @@
-package com.main
-
 import UnderlyingGraph._
 import scala.annotation.tailrec
 import scala.collection.mutable.{ListBuffer, Set => FrontierSet}
@@ -74,7 +72,7 @@ object ZDDMain {
   }
 
   object Node {
-    def unapply(n: Node) = n
+    def unapply(n: Node) = Some(n.edgeLabel, n.mates, n.zeroChild, n.oneChild)
     def apply(e: Edge, m: Map[Vertex, Vertex]) = new Node(e, m, null, null)
   }
 

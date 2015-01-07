@@ -1,8 +1,6 @@
-package com.main
-
-import com.main.UnderlyingGraph._
-import com.main.GridGraphCanvas._
-import com.main.T1TilePaths._
+import UnderlyingGraph._
+import GridGraphCanvas._
+import T1TilePaths._
 import java.awt.BasicStroke
 import scala.swing.BorderPanel.Position._
 import scala.swing.Swing._
@@ -10,7 +8,7 @@ import scala.swing.TabbedPane._
 import scala.swing._
 import scala.swing.event._
 
-object FinalProjUI  extends SimpleSwingApplication {
+object FinalProjUI extends SimpleSwingApplication {
   def top = new MainFrame {
     title = "fun with zdd"
 
@@ -20,7 +18,6 @@ object FinalProjUI  extends SimpleSwingApplication {
         pages += new Page("Parameters", parameters.panel)
         pages += new Page("Grid Graph", gridVis.panel)
         pages += new Page("Grid Graph + Tiles", gridWithTilesVis.panel)
-        pages += new Page("DAG", DAGVis.pane)
       }
       layout(tabs) = Center
     }
@@ -104,14 +101,13 @@ object FinalProjUI  extends SimpleSwingApplication {
   object buildChoices {
     val gridGraph = new RadioButton("Grid Graph")
     val gridGraphTilePaths = new RadioButton("Grid Graph with Tile Paths")
-    val dag = new RadioButton("DAG")
-    val mutex = new ButtonGroup(gridGraph, gridGraphTilePaths, dag)
+    val mutex = new ButtonGroup(gridGraph, gridGraphTilePaths)
     mutex.select(gridGraph)
 
     val panel = new BoxPanel(Orientation.Vertical) {
       border = CompoundBorder(TitledBorder(EtchedBorder, "Visualize as..."), EmptyBorder(5, 5, 5, 10))
       contents ++= mutex.buttons
-      listenTo(gridGraph, gridGraphTilePaths, dag)
+      listenTo(gridGraph, gridGraphTilePaths)
     }
   }
 
@@ -151,14 +147,6 @@ object FinalProjUI  extends SimpleSwingApplication {
               gridWithTilesVis.panel.canvas.buildTilePaths(tileSets.alpha)
               gridWithTilesVis.setPathSlider()
               gridWithTilesVis.setTilePathSlider()
-
-            case Some(buildChoices.dag) =>
-              algorithms.getSelection() match {
-                case "Hamiltonian Path Enumeration" =>
-                  DAGVis.pane.canvas.buildDAG(true)
-                case "Path Enumeration" =>
-                  DAGVis.pane.canvas.buildDAG(false)
-              }
 
             case _ => throw new NoSuchElementException
           }
@@ -270,15 +258,6 @@ object FinalProjUI  extends SimpleSwingApplication {
         panel.tilePathSlider.value = 0
         panel.tilePathSlider.max = 0
       }
-    }
-  }
-
-  object DAGVis {
-    lazy val pane = new ScrollPane {
-      val canvas = new DAGCanvas {
-        //preferredSize = new Dimension(640, 640)
-      }
-      contents = canvas
     }
   }
 

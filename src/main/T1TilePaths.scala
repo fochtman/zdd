@@ -1,5 +1,3 @@
-package com.main
-
 import UnderlyingGraph._
 import scala.collection.mutable.ListBuffer
 import scala.collection.mutable.HashMap

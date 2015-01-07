@@ -1,9 +1,7 @@
-package com.main
-
 import java.awt.RenderingHints
-import com.main.UnderlyingGraph._
-import com.main.ZDDMain._
-import com.main.T1TilePaths._
+import UnderlyingGraph._
+import ZDDMain._
+import T1TilePaths._
 import scala.collection.mutable.ListBuffer
 import scala.swing._
 
