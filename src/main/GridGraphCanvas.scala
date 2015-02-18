@@ -2,6 +2,7 @@ import java.awt.RenderingHints
 import UnderlyingGraph._
 import ZDDMain._
 import T1TilePaths._
+import FinalProjUI._
 import scala.collection.mutable.ListBuffer
 import scala.swing._
 

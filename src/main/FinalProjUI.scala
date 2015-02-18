@@ -30,7 +30,7 @@ object FinalProjUI extends SimpleSwingApplication {
       }
     }
   }
-}
+
   object parameters {
     val param = new GridPanel(3, 1) {
       contents += sizes.panel
@@ -42,7 +42,6 @@ object FinalProjUI extends SimpleSwingApplication {
       layout(param) = Center
       layout(applyParameters.panel) = South
     }
-
   }
 
   object sizes {
@@ -50,20 +49,22 @@ object FinalProjUI extends SimpleSwingApplication {
     val mutex = new ButtonGroup(one)
     mutex.select(one)
 
-    val graphType = new BoxPanel(Orientation.Vertical) {
-      contents ++= mutex.buttons
-    }
+    val graphType = new BoxPanel(Orientation.Vertical) { contents ++= mutex.buttons }
 
     val h = new ComboBox(1 to 8)
-    val w = new ComboBox(1 to 8)
-
     val hFlow = new FlowPanel {
       contents += h
-      contents += new Label{ text = "Rows"}
+      contents += new Label {
+        text = "Rows"
+      }
     }
+
+    val w = new ComboBox(1 to 8)
     val wFlow = new FlowPanel {
       contents += w
-      contents += new Label{ text = "Columns"}
+      contents += new Label {
+        text = "Columns"
+      }
     }
 
     val panel = new BoxPanel(Orientation.Vertical) {
@@ -156,11 +157,9 @@ object FinalProjUI extends SimpleSwingApplication {
 
   object gridVis {
     lazy val panel = new BorderPanel {
-
       val dim = new Dimension(640, 640)
       val canvas = new PathCanvas(dim) {
         preferredSize = dim
-
         val slider = new Slider {
           min = 0
           max = 0
@@ -211,13 +210,11 @@ object FinalProjUI extends SimpleSwingApplication {
         majorTickSpacing = 1
         paintTicks = true
       }
-
       val sliderPanel = new BorderPanel {
         layout(tilePathSlider) = North
         layout(pathSlider) = South
 
         listenTo(pathSlider, tilePathSlider)
-
         reactions += {
           case ValueChanged(`pathSlider`) =>
             if (!pathSlider.adjusting && canvas.paths.length != 0)
@@ -228,7 +225,6 @@ object FinalProjUI extends SimpleSwingApplication {
               canvas.changeTilePath(tilePathSlider.value)
         }
       }
-
       layout(canvas) = Center
       layout(sliderPanel) = South
     }
@@ -261,71 +257,69 @@ object FinalProjUI extends SimpleSwingApplication {
     }
   }
 
-object vis {
-  var grid = GridGraph(2, 2)
-
-  var ggV: List[UnderlyingGraph.Vertex] = grid.graph.vertices
-  var h = List(VertexPair(ggV(0), ggV.last))
-  var root: ZDDMain.Node = null
-
-  def updateVis(height: Int, width: Int) {
-    grid = GridGraph(height, width)
-    ggV = grid.graph.vertices
-    h = List(VertexPair(ggV(0), ggV.last))
+  object vis {
+    var grid = GridGraph(2, 2)
+    var ggV: List[UnderlyingGraph.Vertex] = grid.graph.vertices
+    var h = List(VertexPair(ggV(0), ggV.last))
+    var root: ZDDMain.Node = null
+    def updateVis(height: Int, width: Int) {
+      grid = GridGraph(height, width)
+      ggV = grid.graph.vertices
+      h = List(VertexPair(ggV(0), ggV.last))
+    }
   }
-}
 
-object tileSets {
-  val sq = T1TilePaths.Glue('a'.toInt)
-  val wt = T1TilePaths.Glue('b'.toInt)
-  val dt = T1TilePaths.Glue('c'.toInt)
-  val ci = T1TilePaths.Glue('d'.toInt)
-  val cc = T1TilePaths.Glue('e'.toInt)
+  object tileSets {
+    val sq = T1TilePaths.Glue('a'.toInt)
+    val wt = T1TilePaths.Glue('b'.toInt)
+    val dt = T1TilePaths.Glue('c'.toInt)
+    val ci = T1TilePaths.Glue('d'.toInt)
+    val cc = T1TilePaths.Glue('e'.toInt)
 
-  val a = Tile(nullGlue, nullGlue, sq, wt)
-  val b = Tile(sq, ci, nullGlue, nullGlue)
-  val c = Tile(dt, nullGlue, nullGlue, ci)
-  val d = Tile(nullGlue, wt, dt, nullGlue)
-  val e = Tile(cc, cc, cc, cc)
-  val f = Tile(nullGlue, cc, nullGlue, cc)
-  val g = Tile(sq, cc, sq, cc)
-  val alpha = TileSet(Set(a, b, c, d, e, f, g))
-  val beta = TileSet(Set(a, b, c, d))
-  val theta = TileSet(Set(e, f))
-}
+    val a = Tile(nullGlue, nullGlue, sq, wt)
+    val b = Tile(sq, ci, nullGlue, nullGlue)
+    val c = Tile(dt, nullGlue, nullGlue, ci)
+    val d = Tile(nullGlue, wt, dt, nullGlue)
+    val e = Tile(cc, cc, cc, cc)
+    val f = Tile(nullGlue, cc, nullGlue, cc)
+    val g = Tile(sq, cc, sq, cc)
+    val alpha = TileSet(Set(a, b, c, d, e, f, g))
+    val beta = TileSet(Set(a, b, c, d))
+    val theta = TileSet(Set(e, f))
+  }
 
-object stroke {
-  val four = new BasicStroke(4)
-  val strokePattern = Array(8.0f)
-  val fourDashed = new BasicStroke(4, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL, 1.0f, strokePattern, 0)
-  val eight = new BasicStroke(8)
-  val sixteen = new BasicStroke(16)
-  val roundSixteen = new BasicStroke(16, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND)
-}
+  object stroke {
+    val four = new BasicStroke(4)
+    val strokePattern = Array(8.0f)
+    val fourDashed = new BasicStroke(4, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL, 1.0f, strokePattern, 0)
+    val eight = new BasicStroke(8)
+    val sixteen = new BasicStroke(16)
+    val roundSixteen = new BasicStroke(16, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND)
+  }
 
-object zorn  {
-  val yellowOchre = new Color(245, 197, 44)
-  val cadmiumRedMedium = new Color(196, 1, 45)
-  val ivoryBlack = new Color(40, 36, 34)
-  val titaniumWhite = new Color(244, 237, 237)
+  object zorn  {
+    val yellowOchre = new Color(245, 197, 44)
+    val cadmiumRedMedium = new Color(196, 1, 45)
+    val ivoryBlack = new Color(40, 36, 34)
+    val titaniumWhite = new Color(244, 237, 237)
 
-  val yellowOchreAlpha = new Color(245, 197, 44, 128)
-  val cadmiumRedMediumAlpha = new Color(196, 1, 45, 128)
-  val titaniumWhiteAlpha = new Color(244, 237, 237, 64)
+    val yellowOchreAlpha = new Color(245, 197, 44, 128)
+    val cadmiumRedMediumAlpha = new Color(196, 1, 45, 128)
+    val titaniumWhiteAlpha = new Color(244, 237, 237, 64)
 
-  val blend = new Color(181, 117, 90, 150)
-  val YBW = List[Color](yellowOchre, ivoryBlack, titaniumWhite)
-  val palette = List[Color](yellowOchre, cadmiumRedMedium, ivoryBlack, titaniumWhite)
-  val blended = blendPalette(palette)
+    val blend = new Color(181, 117, 90, 150)
+    val YBW = List[Color](yellowOchre, ivoryBlack, titaniumWhite)
+    val palette = List[Color](yellowOchre, cadmiumRedMedium, ivoryBlack, titaniumWhite)
+    val blended = blendPalette(palette)
 
-  def blendPalette(palette: List[Color]): List[Color] = {
-    def f(c1: Int, c2: Int) = (c1+c2)/2
-    for {
-      i <- palette
-      j <- palette
-    } yield {
-      new Color(f(i.getRed, j.getRed), f(i.getGreen, j.getGreen), f(i.getBlue, j.getBlue), 230)
+    def blendPalette(palette: List[Color]): List[Color] = {
+      def f(c1: Int, c2: Int) = (c1+c2)/2
+      for {
+        i <- palette
+        j <- palette
+      } yield {
+        new Color(f(i.getRed, j.getRed), f(i.getGreen, j.getGreen), f(i.getBlue, j.getBlue), 230)
+      }
     }
   }
 }
-

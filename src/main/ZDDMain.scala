@@ -102,7 +102,6 @@ object ZDDMain {
   }
 
   def setupFrontier(g: Graph, domain: Map[Int, List[Vertex]]) = {
-    //val rootMates: Map[Vertex, Vertex] = ListMap(domain(0) zip g.vertices: _*)
     val rootMates: Map[Vertex, Vertex] = Map(domain(0) zip g.vertices: _*)
     val root = Node(g.edges(0), rootMates)
     val frontier = scala.collection.mutable.HashMap[Int, FrontierSet[Node]](0 -> FrontierSet(root))
@@ -228,7 +227,6 @@ object ZDDMain {
         false
     }
 
-
     /*
     Start zeroChild calculations
      */
@@ -352,99 +350,3 @@ object ZDDMain {
     frontier(0).head
   }
 }
-
-  /*
-  def algorithmOne(g: Graph): Node = {
-    val edges = g.edges
-
-    val domain = setupDomain(edges)
-    val frontier = setupFrontier(g, domain)
-
-    val edgeIndices = g.edges.indices.toList
-    val iMax = edgeIndices.length
-
-    println(frontier)
-
-    for (i <- edgeIndices; n <- frontier(i)) {
-
-      n.zeroChild =
-        if (i + 1 < iMax) {
-          getNode (
-            edges(i + 1),
-            restrictMates(n.mates, domain(i) diff domain(i + 1)),
-            frontier(i + 1)
-          )
-        } else {
-          oneTerminal
-        }
-
-      n.oneChild =
-        if (rejectEdge(n.mates, edges(i)))
-          zeroTerminal
-        else if(i + 1 < iMax)
-          getNode (
-            edges(i + 1),
-            restrictMates(
-              mateUpdate(edges(i), n.mates), domain(i) diff domain(i + 1)
-            ),
-            frontier(i + 1)
-          )
-        else
-          oneTerminal
-    }
-
-    frontier(0).head
-  }
-  */
-
-  /*
-  def restrictMates(nMates: Map[Vertex, Vertex], domainDifference: List[Vertex]): Map[Vertex, Vertex] = {
-    if (domainDifference.isEmpty)
-      nMates
-    else
-      nMates - domainDifference.head
-  }
-
-  def getNode(edge: Edge, nMates: Map[Vertex, Vertex], frontierSet: FrontierSet[Node]): Node = {
-    val newNode = Node(edge, nMates)
-
-    frontierSet.find(_ == newNode) match {
-      case Some(extantNode) => extantNode
-      case None =>
-        frontierSet += newNode
-        newNode
-    }
-  }
-
-  def rejectEdge(nMates: Map[Vertex, Vertex], edge: Edge): Boolean = {
-    val u = edge.u
-    val v = edge.v
-
-    if (Set(0, v).contains(nMates(u)))
-      true
-    else if (Set(0, u).contains(nMates(v)))
-      true
-    else
-      false
-  }
-
-  def mateUpdate(edge: Edge, nMates: Map[Vertex, Vertex]): Map[Vertex, Vertex] = {
-    val u = edge.u
-    val v = edge.v
-    val edgeSet = Set(u, v)
-
-    for {
-      (w, mate) <- nMates
-    } yield {
-      if (edgeSet.contains(w) && nMates(w) != w)
-        (w, 0)
-      else if (nMates(w) == u)
-        (w, nMates(v))
-      else if (nMates(w) == v)
-        (w, nMates(u))
-      else
-        (w, mate) //nMates(w)
-    }
-  }
-  */
-

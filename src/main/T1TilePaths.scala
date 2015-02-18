@@ -167,11 +167,8 @@ object T1TilePaths {
   }
 
   def buildTileFrontier(directions: Vector[Direction], alpha: TileSet): HashMap[Int, Set[Tile]] = {
-
     val tileFrontier = HashMap[Int, Set[Tile]](0 -> alpha.tileSet)
-
     val pathSize = directions.length
-
     (1 to pathSize) map (i =>
       tileFrontier(i) = Set[Tile]())
 
@@ -189,8 +186,7 @@ object T1TilePaths {
   }
 
   def tilePaths(directions: Vector[Direction], tileFrontier: HashMap[Int, Set[Tile]]): ListBuffer[ListBuffer[Tile]] = {
-    // reverse sort the tileFrontier keys, so that we can start building our tile paths from the bottom
-    // of the tree up
+    // reverse sort the tileFrontier keys, so that we can start building our tile paths from the bottom of the tree up
     val last = tileFrontier.keys.toList.sortWith(_ > _).head
     val tilePaths = ListBuffer[ListBuffer[Tile]]()
 
@@ -210,8 +206,6 @@ object T1TilePaths {
     tilePaths
   }
 
-
-  //def mapPathsToTilePaths(h: List[VertexPair], paths: ListBuffer[ListBuffer[Byte]], g: GridGraph, alpha: TileSet): Map[ListBuffer[Byte], ListBuffer[ListBuffer[Tile]]] = {
   def mapPathsToTilePaths(h: List[VertexPair], paths: ListBuffer[ListBuffer[Byte]], g: GridGraph, alpha: TileSet): Map[List[Byte], ListBuffer[ListBuffer[Tile]]] = {
     val edges = g.graph.edges
     val startVertex = h.head.v0
@@ -225,6 +219,5 @@ object T1TilePaths {
       }
     val pathsWithInnerList = paths map (_.toList)
     Map(pathsWithInnerList zip tilePathsList:_*)
-    //Map(paths zip tilePathsList:_*)
   }
 }
