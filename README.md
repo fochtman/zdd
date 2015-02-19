@@ -10,20 +10,20 @@ along the path must match.
 
 At the heart of the calculations I'm utilizing a data structure known as a zero-supressed decision diagram (ZDD).
 
-![set parameters](Examples/zdd-parameters.jpg)
+![set parameters](https://cloud.githubusercontent.com/assets/6858645/6261376/e1a4286e-b7b3-11e4-8fdb-91c677db9b1a.JPG)
 
 *enumerate paths*
 
-![simple path](Examples/zdd-example-vis-0.jpg)
+![simple path](https://cloud.githubusercontent.com/assets/6858645/6261396/07b1a0cc-b7b4-11e4-85a7-77c30281de26.JPG)
 
-![hamiltonian path](Examples/zdd-example-vis-1.jpg)
+![hamiltonian path](https://cloud.githubusercontent.com/assets/6858645/6261395/0196e6e8-b7b4-11e4-9654-e3664430d13a.JPG)
 
 *enumerate tile paths*
 
-![simple tile path](Examples/zdd-example-vis-with-tiles-0.jpg)
+![simple tile path](https://cloud.githubusercontent.com/assets/6858645/6261380/ea63d184-b7b3-11e4-8d2d-f548b06ca4b9.JPG)
 
 1 out of the 214,480 simple tile paths.
 
-![hamiltonian tile path](Examples/zdd-example-vis-with-tiles-1.jpg)
+![hamiltonian tile path](https://cloud.githubusercontent.com/assets/6858645/6261379/e8deefc4-b7b3-11e4-805b-4bb22e623343.JPG)
 
 1 out of the 1,595,655 hamiltonian tile paths.
