@@ -193,7 +193,7 @@ object GridGraphCanvas {
 
       assert(alpha.tileSet.size <= zorn.blended.length)
       tileToColor.clear()
-      tileToColor ++= alpha.tileSet zip zorn.blended.distinct.reverse
+      tileToColor ++= alpha.tileSet zip zorn.paletteRand.distinct.reverse
     }
   }
 }

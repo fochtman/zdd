@@ -10,7 +10,7 @@ import scala.swing.event._
 
 object FinalProjUI extends SimpleSwingApplication {
   def top = new MainFrame {
-    title = "fun with zdd"
+    title = ""
 
     contents = new BorderPanel {
 
@@ -145,7 +145,7 @@ object FinalProjUI extends SimpleSwingApplication {
             case Some(buildChoices.gridGraphTilePaths) =>
               System.gc()
               gridWithTilesVis.panel.canvas.collectPaths(hamiltonianPath)
-              gridWithTilesVis.panel.canvas.buildTilePaths(tileSets.alpha)
+              gridWithTilesVis.panel.canvas.buildTilePaths(tileSets.beta)
               gridWithTilesVis.setPathSlider()
               gridWithTilesVis.setTilePathSlider()
 
@@ -284,8 +284,8 @@ object FinalProjUI extends SimpleSwingApplication {
     val f = Tile(nullGlue, cc, nullGlue, cc)
     val g = Tile(sq, cc, sq, cc)
     val alpha = TileSet(Set(a, b, c, d, e, f, g))
-    val beta = TileSet(Set(a, b, c, d))
-    val theta = TileSet(Set(e, f))
+    val beta = TileSet(Set(a, b, c, d, f, g))
+    val theta = TileSet(Set(e, f, g))
   }
 
   object stroke {
@@ -306,11 +306,32 @@ object FinalProjUI extends SimpleSwingApplication {
     val yellowOchreAlpha = new Color(245, 197, 44, 128)
     val cadmiumRedMediumAlpha = new Color(196, 1, 45, 128)
     val titaniumWhiteAlpha = new Color(244, 237, 237, 64)
+    val ivoryBlackAlpha = new Color(40, 36, 34, 128)
 
-    val blend = new Color(181, 117, 90, 150)
+    val blend = new Color(181, 117, 90, 150) // more or less brownish
+    val gray = new Color(128, 128, 128)
     val YBW = List[Color](yellowOchre, ivoryBlack, titaniumWhite)
     val palette = List[Color](yellowOchre, cadmiumRedMedium, ivoryBlack, titaniumWhite)
+    val paletteAlpha = List[Color](yellowOchreAlpha, cadmiumRedMediumAlpha, ivoryBlackAlpha, titaniumWhiteAlpha)
+    val paletteRand = randomPalette
     val blended = blendPalette(palette)
+
+    def yellow(a: Int) = new Color(245, 197, 44, a)
+    def red(a: Int) = new Color(196, 1, 45, a)
+    def green(a: Int) = new Color(45, 196, 1, a)
+    def blue(a: Int) = new Color(1, 45, 196, a)
+
+    def randomPalette: List[Color] = {
+      import scala.util.Random
+      val colorFuncs = List(yellow(_), red(_), green(_), blue(_))
+      val sixteenColors =
+        for {
+          cf <- colorFuncs
+          j <- (1 to 4).toList
+          color = cf(Random.nextInt(195) + 60)
+        } yield color
+      Random.shuffle(sixteenColors)
+    }
 
     def blendPalette(palette: List[Color]): List[Color] = {
       def f(c1: Int, c2: Int) = (c1+c2)/2
